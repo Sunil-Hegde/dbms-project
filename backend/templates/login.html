@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Waste Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+        .login-container {
+            max-width: 500px;
+            margin: 5rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .role-btn {
+            width: 100%;
+            margin-bottom: 1rem;
+            padding: 0.8rem;
+            border-radius: 5px;
+            font-weight: 500;
+        }
+        .form-container {
+            display: none;
+        }
+        .active-form {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="login-container">
+            <h2 class="text-center mb-4">Waste Management System</h2>
+            <h4 class="text-center mb-4">Login as:</h4>
+            
+            <div class="d-grid gap-2 mb-4">
+                <button class="btn btn-primary role-btn" onclick="showForm('user')">User</button>
+                <button class="btn btn-success role-btn" onclick="showForm('vehicle')">Vehicle</button>
+                <button class="btn btn-dark role-btn" onclick="showForm('admin')">Admin</button>
+            </div>
+
+            <!-- User Login Form -->
+            <div id="user-form" class="form-container">
+                <form action="/login/user" method="POST">
+                    <div class="mb-3">
+                        <label for="user-email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="user-email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="user-password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="user-password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Login as User</button>
+                </form>
+            </div>
+
+            <!-- Vehicle Login Form -->
+            <div id="vehicle-form" class="form-container">
+                <form action="/login/vehicle" method="POST">
+                    <div class="mb-3">
+                        <label for="vehicle-id" class="form-label">Vehicle ID</label>
+                        <input type="text" class="form-control" id="vehicle-id" name="vehicle_id" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="vehicle-password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="vehicle-password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Login as Vehicle</button>
+                </form>
+            </div>
+
+            <!-- Admin Login Form -->
+            <div id="admin-form" class="form-container">
+                <form action="/login/admin" method="POST">
+                    <div class="mb-3">
+                        <label for="admin-username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="admin-username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="admin-password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="admin-password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-dark w-100">Login as Admin</button>
+                </form>
+            </div>
+
+            <div class="text-center mt-3">
+                <a href="/">Back to Home</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showForm(role) {
+            // Hide all forms
+            document.querySelectorAll('.form-container').forEach(form => {
+                form.classList.remove('active-form');
+            });
+            
+            // Show selected form
+            document.getElementById(`${role}-form`).classList.add('active-form');
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
