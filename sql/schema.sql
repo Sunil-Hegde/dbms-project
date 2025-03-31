@@ -70,3 +70,18 @@ CREATE TABLE IF NOT EXISTS complaint (
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
     FOREIGN KEY (area_id) REFERENCES area(area_id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS admin (
+    admin_id INTEGER PRIMARY KEY AUTOINCREMENT, -- Unique admin ID
+    username VARCHAR(50) UNIQUE NOT NULL,       -- Admin's username
+    password VARCHAR(255) NOT NULL,             -- Hashed password
+    name VARCHAR(100) NOT NULL                  -- Admin's name
+);
+
+-- Insert areas in Bangalore
+INSERT INTO area (name, longitude, latitude) VALUES 
+    ('Koramangala', 77.6209, 12.9352),
+    ('Indiranagar', 77.6410, 12.9784),
+    ('Whitefield', 77.7480, 12.9698),
+    ('Jayanagar', 77.5934, 12.9299),
+    ('Electronic City', 77.6701, 12.8399);
