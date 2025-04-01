@@ -1,20 +1,24 @@
--- Create the `user` table
+-- Create the `user` table with area_id and assigned_vehicle_id
 CREATE TABLE IF NOT EXISTS user (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT, -- Unique user ID
     first_name VARCHAR(50) NOT NULL,          -- User's first name
     middle_name VARCHAR(50),                  -- User's middle name (optional)
     last_name VARCHAR(50) NOT NULL,           -- User's last name
     email VARCHAR(100) UNIQUE NOT NULL,       -- User's email (used for login)
-    password VARCHAR(255) NOT NULL,            -- Hashed password
+    password VARCHAR(255) NOT NULL,           -- Hashed password
     mobile VARCHAR(15),                       -- User's mobile number
     gender VARCHAR(10),                       -- User's gender
     age INTEGER,                              -- User's age
     address TEXT,                             -- User's address
     u_points INTEGER DEFAULT 0,               -- User's reward points
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP -- Timestamp for account creation
+    area_id INTEGER,                          -- Foreign key to area table
+    assigned_vehicle_id INTEGER,              -- Foreign key to vehicle table 
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Timestamp for account creation
+    FOREIGN KEY (area_id) REFERENCES area(area_id),
+    FOREIGN KEY (assigned_vehicle_id) REFERENCES vehicle(vehicle_id)
 );
 
--- Create the `vehicle` table
+-- Update the vehicle table to include area_id
 CREATE TABLE IF NOT EXISTS vehicle (
     vehicle_id INTEGER PRIMARY KEY AUTOINCREMENT, -- Unique vehicle ID
     vehicle_identifier VARCHAR(50) UNIQUE NOT NULL, -- Vehicle identifier (used for login)
@@ -23,8 +27,11 @@ CREATE TABLE IF NOT EXISTS vehicle (
     driver_phone VARCHAR(15),                      -- Driver's phone number
     type VARCHAR(50),                              -- Type of vehicle (e.g., truck, van)
     license_plate VARCHAR(20),                     -- License plate number
-    route TEXT,                                    -- Assigned route
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP  -- Timestamp for vehicle registration
+    route TEXT,                                    -- Assigned route description
+    area_id INTEGER,                               -- Foreign key to area table
+    status VARCHAR(20) DEFAULT 'Active',           -- Status of the vehicle
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Timestamp for vehicle registration
+    FOREIGN KEY (area_id) REFERENCES area(area_id)
 );
 
 -- Create the `reward` table
@@ -85,3 +92,8 @@ INSERT INTO area (name, longitude, latitude) VALUES
     ('Whitefield', 77.7480, 12.9698),
     ('Jayanagar', 77.5934, 12.9299),
     ('Electronic City', 77.6701, 12.8399);
+
+insert into admin values(1, 
+'admin', 
+'scrypt:32768:8:1$hKmYC1cNKpbb12CS$4726579de9fe983bf7f95d4061a14dac8f218c1f05cbe14958bb5a039c448186c377098bdeba37a5c42332db51bd03b625a138f0d2d6ea3e1efa47b19e2f8cf8', 
+'admin');

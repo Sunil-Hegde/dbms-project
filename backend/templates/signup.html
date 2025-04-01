@@ -175,6 +175,112 @@
             width: 0%;
             transition: width 0.3s ease;
         }
+
+        /* Add these new styles for the popup notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 350px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            z-index: 9999;
+            transform: translateX(400px);
+            transition: transform 0.4s ease-out;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification-header {
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .notification-title {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .notification-close {
+            cursor: pointer;
+            font-size: 20px;
+            color: #777;
+        }
+        
+        .notification-body {
+            padding: 15px;
+        }
+        
+        .notification-message {
+            margin-bottom: 5px;
+        }
+        
+        .notification-progress {
+            height: 3px;
+            background-color: #ddd;
+            width: 100%;
+        }
+        
+        .notification-bar {
+            height: 100%;
+            width: 100%;
+            transition: width 5s linear;
+        }
+        
+        .notification-success .notification-header {
+            background-color: #2c8a49;
+            color: white;
+        }
+        
+        .notification-success .notification-bar {
+            background-color: #2c8a49;
+        }
+        
+        .notification-error .notification-header {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .notification-error .notification-bar {
+            background-color: #dc3545;
+        }
+        
+        .notification-warning .notification-header {
+            background-color: #ffc107;
+            color: #333;
+        }
+        
+        .notification-warning .notification-bar {
+            background-color: #ffc107;
+        }
+        
+        .notification-info .notification-header {
+            background-color: #0dcaf0;
+            color: white;
+        }
+        
+        .notification-info .notification-bar {
+            background-color: #0dcaf0;
+        }
+        
+        .notification-redirect {
+            display: block;
+            margin-top: 10px;
+            color: #2c8a49;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .notification-redirect:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -471,18 +577,123 @@
             
             if (password !== confirmPassword) {
                 errorElement.style.display = 'block';
+                showNotification('error', 'Validation Error', 'Passwords do not match. Please try again.');
                 return false;
+            } else if (password.length < 8) {
+                errorElement.style.display = 'none';
+                showNotification('warning', 'Password Warning', 'Password should be at least 8 characters long for better security.');
             } else {
                 errorElement.style.display = 'none';
-                return true;
             }
+            return true;
         }
         
         // Initialize default form
         document.addEventListener('DOMContentLoaded', function() {
             showForm('user');
+            
+            // Check for query parameters that might indicate success or failure
+            const urlParams = new URLSearchParams(window.location.search);
+            const status = urlParams.get('status');
+            const message = urlParams.get('message');
+            
+            if (status === 'success') {
+                showNotification('success', 'Success!', message || 'Your account has been created successfully!', {
+                    url: '/login',
+                    text: 'Click here to log in or wait to be redirected...',
+                    auto: true
+                });
+            } else if (status === 'error') {
+                showNotification('error', 'Error', message || 'There was a problem creating your account.');
+            }
+        });
+        
+        // Add notification system
+        function showNotification(type, title, message, redirect = null) {
+            const container = document.getElementById('notification-container');
+            const notificationId = 'notification-' + Date.now();
+            
+            const notification = document.createElement('div');
+            notification.id = notificationId;
+            notification.className = `notification notification-${type}`;
+            
+            let redirectHtml = '';
+            if (redirect) {
+                redirectHtml = `<a href="${redirect.url}" class="notification-redirect">${redirect.text}</a>`;
+            }
+            
+            notification.innerHTML = `
+                <div class="notification-header">
+                    <div class="notification-title">${title}</div>
+                    <div class="notification-close" onclick="closeNotification('${notificationId}')">&times;</div>
+                </div>
+                <div class="notification-body">
+                    <div class="notification-message">${message}</div>
+                    ${redirectHtml}
+                </div>
+                <div class="notification-progress">
+                    <div class="notification-bar" id="${notificationId}-bar"></div>
+                </div>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Show notification with animation
+            setTimeout(() => {
+                notification.classList.add('show');
+                const bar = document.getElementById(`${notificationId}-bar`);
+                bar.style.width = '0';
+            }, 10);
+            
+            // Auto close after 5 seconds
+            const timeout = setTimeout(() => {
+                closeNotification(notificationId);
+                
+                // If redirect is provided, navigate after the notification closes
+                if (redirect && redirect.auto) {
+                    window.location.href = redirect.url;
+                }
+            }, 5000);
+            
+            // Store timeout to clear it if closed manually
+            notification.dataset.timeout = timeout;
+        }
+        
+        function closeNotification(id) {
+            const notification = document.getElementById(id);
+            if (!notification) return;
+            
+            // Clear the auto-close timeout
+            clearTimeout(notification.dataset.timeout);
+            
+            // Hide with animation
+            notification.classList.remove('show');
+            
+            // Remove after animation completes
+            setTimeout(() => {
+                notification.remove();
+            }, 400);
+        }
+        
+        // Submit form with AJAX to show notifications
+        document.getElementById('user-signup-form').addEventListener('submit', function(e) {
+            if (!validateForm()) {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Show loading notification
+            showNotification('info', 'Please wait', 'Creating your account...');
+        });
+        
+        // Also attach to vehicle form
+        document.querySelector('#vehicle-form form').addEventListener('submit', function() {
+            showNotification('info', 'Please wait', 'Registering vehicle...');
         });
     </script>
+
+    <!-- Notification templates -->
+    <div id="notification-container"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">

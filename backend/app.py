@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import sqlite3
 from datetime import datetime
@@ -122,14 +122,23 @@ def signup_user():
             )
             conn.commit()
             conn.close()
+            
+            # Return with success message
             flash('User signup successful! Please log in.', 'success')
             return redirect(url_for('login'))
+            
         except sqlite3.IntegrityError:
             flash('Email already exists. Please use a different email.', 'danger')
+            return redirect(url_for('signup') + '?status=error&message=Email already exists. Please use a different email.')
+            
         except KeyError as e:
             flash(f'Missing required field: {str(e)}', 'danger')
+            return redirect(url_for('signup') + f'?status=error&message=Missing required field: {str(e)}')
+            
         except Exception as e:
             flash(f'An error occurred during signup: {str(e)}', 'danger')
+            return redirect(url_for('signup') + f'?status=error&message=An error occurred: {str(e)}')
+            
     return render_template('signup.html')
 
 @app.route('/signup/vehicle', methods=['GET', 'POST'])
@@ -159,14 +168,23 @@ def signup_vehicle():
             )
             conn.commit()
             conn.close()
+            
+            # Return with success message
             flash('Vehicle registered successfully! Please log in.', 'success')
             return redirect(url_for('login'))
+            
         except sqlite3.IntegrityError:
             flash('Vehicle identifier already exists. Please use a different identifier.', 'danger')
+            return redirect(url_for('signup') + '?status=error&message=Vehicle identifier already exists. Please use a different one.')
+            
         except KeyError as e:
             flash(f'Missing required field: {str(e)}', 'danger')
+            return redirect(url_for('signup') + f'?status=error&message=Missing required field: {str(e)}')
+            
         except Exception as e:
             flash(f'An error occurred during registration: {str(e)}', 'danger')
+            return redirect(url_for('signup') + f'?status=error&message=An error occurred: {str(e)}')
+            
     return render_template('signup.html')
 
 @app.route('/login/user', methods=['POST'])
@@ -194,52 +212,89 @@ def login_user():
 @app.route('/UserDashboard')
 def user_dashboard():
     if 'user_id' not in session:
-        flash('Please log in to access the dashboard.', 'danger')
+        flash('Please log in to access your dashboard.', 'danger')
         return redirect(url_for('login'))
-
+    
     user_id = session['user_id']
+    
     conn = sqlite3.connect('WasteManagement.db')
     cursor = conn.cursor()
-
-    # Fetch user data
+    
+    # Get user information
     cursor.execute("""
-        SELECT first_name || ' ' || last_name AS full_name, address, u_points
-        FROM user WHERE user_id = ?
+        SELECT u.first_name, u.last_name, u.email, u.mobile, u.address, 
+               u.area_id, a.name as area_name, u.assigned_vehicle_id
+        FROM user u
+        LEFT JOIN area a ON u.area_id = a.area_id
+        WHERE u.user_id = ?
     """, (user_id,))
+    
     user_data = cursor.fetchone()
-
-    # Fetch areas
-    cursor.execute("SELECT area_id, name FROM area")
-    areas = cursor.fetchall()
-
-    # Fetch complaints
+    
+    # Get available areas
+    cursor.execute("SELECT area_id, name, longitude, latitude FROM area")
+    areas = [{'area_id': row[0], 'name': row[1], 'description': f"Location: {row[2]}, {row[3]}"} for row in cursor.fetchall()]
+    
+    # Get assigned vehicle info if any
+    assigned_vehicle = "Not assigned yet"
+    if user_data[7]:  # assigned_vehicle_id
+        cursor.execute("""
+            SELECT type, license_plate, driver_name
+            FROM vehicle
+            WHERE vehicle_id = ?
+        """, (user_data[7],))
+        
+        vehicle_data = cursor.fetchone()
+        if vehicle_data:
+            assigned_vehicle = f"{vehicle_data[0] or 'Standard'} ({vehicle_data[1] or 'Not assigned'}) - Driver: {vehicle_data[2] or 'Unassigned'}"
+    
+    # Get total waste given by user
     cursor.execute("""
-        SELECT c.message, c.status, c.comp_date, a.name AS area_name
+        SELECT COALESCE(SUM(bio_wt + non_bio_wt), 0)
+        FROM waste
+        WHERE user_id = ?
+    """, (user_id,))
+    
+    total_waste = cursor.fetchone()[0] or 0
+    
+    # Get user complaints
+    cursor.execute("""
+        SELECT c.complaint_id, a.name as area_name, c.message, c.status, c.comp_date
         FROM complaint c
         JOIN area a ON c.area_id = a.area_id
         WHERE c.user_id = ?
         ORDER BY c.comp_date DESC
     """, (user_id,))
-    complaints = cursor.fetchall()
-
+    
+    complaints = [
+        {
+            'complaint_id': row[0],
+            'area_name': row[1],
+            'message': row[2],
+            'status': row[3],
+            'comp_date': row[4]
+        }
+        for row in cursor.fetchall()
+    ]
+    
     conn.close()
-
-    if user_data:
-        user_name, user_address, user_points = user_data
-        return render_template(
-            'userDashboard.html',
-            user_name=user_name,
-            user_address=user_address,
-            user_points=user_points,
-            areas=[{'area_id': area[0], 'name': area[1]} for area in areas],
-            complaints=[
-                {'message': complaint[0], 'status': complaint[1], 'comp_date': complaint[2], 'area_name': complaint[3]}
-                for complaint in complaints
-            ]
-        )
-    else:
-        flash('User not found.', 'danger')
-        return redirect(url_for('home'))
+    
+    # Check if user has selected an area
+    has_selected_area = user_data[5] is not None
+    
+    return render_template(
+        'userDashboard.html',
+        user_name=f"{user_data[0]} {user_data[1]}",
+        user_email=user_data[2],
+        user_phone=user_data[3] or "Not provided",
+        user_address=user_data[4] or "Not provided",
+        current_area=user_data[6],  # area_name
+        assigned_vehicle=assigned_vehicle,
+        total_waste=total_waste,
+        areas=areas,
+        complaints=complaints,
+        has_selected_area=has_selected_area
+    )
 
 @app.route('/update-profile', methods=['POST'])
 def update_profile():
@@ -356,9 +411,11 @@ def admin_dashboard():
     
     # Fetch users for user table
     cursor.execute("""
-        SELECT user_id, first_name || ' ' || last_name AS name, email, mobile, address
-        FROM user
-        ORDER BY user_id
+        SELECT u.user_id, u.first_name || ' ' || u.last_name AS name, u.email, u.mobile, 
+               u.address, u.area_id, a.name as area_name
+        FROM user u
+        LEFT JOIN area a ON u.area_id = a.area_id
+        ORDER BY u.user_id
         LIMIT 10
     """)
     users = [
@@ -367,15 +424,19 @@ def admin_dashboard():
             'name': row[1],
             'email': row[2],
             'phone': row[3] or 'N/A',
-            'address': row[4] or 'N/A'
+            'address': row[4] or 'N/A',
+            'area_id': row[5],
+            'area_name': row[6]
         }
         for row in cursor.fetchall()
     ]
     
-    # Fetch vehicles for vehicle table
+    # Fetch vehicles for vehicle table with area name
     cursor.execute("""
-        SELECT v.vehicle_id, v.type, v.license_plate, v.driver_name, v.route, 'Active' AS status
+        SELECT v.vehicle_id, v.type, v.license_plate, v.driver_name, 
+               a.name as area_name, 'Active' AS status
         FROM vehicle v
+        LEFT JOIN area a ON v.area_id = a.area_id
         ORDER BY v.vehicle_id
         LIMIT 10
     """)
@@ -393,7 +454,7 @@ def admin_dashboard():
             'type': row[1] or 'Standard',
             'license_plate': row[2] or 'Not assigned',
             'driver': row[3] or 'Unassigned',
-            'route': row[4] or 'Not assigned',
+            'area_name': row[4],  # Use area_name instead of route
             'status': status,
             'status_class': status_class
         })
@@ -427,6 +488,10 @@ def admin_dashboard():
             'status_class': status_class
         })
     
+    # Fetch all areas for the area assignment dropdown
+    cursor.execute("SELECT area_id, name FROM area")
+    areas = [{'area_id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+    
     conn.close()
 
     return render_template(
@@ -438,7 +503,8 @@ def admin_dashboard():
         waste_collected=waste_collected,
         users=users,
         vehicles=vehicles,
-        complaints=complaints
+        complaints=complaints,
+        areas=areas
     )
 
 @app.route('/admin/resolve-complaint/<int:complaint_id>', methods=['POST'])
@@ -603,6 +669,365 @@ def complaint_details(complaint_id):
         return {'success': True, 'complaint': complaint}
     except Exception as e:
         return {'success': False, 'message': str(e)}
+
+# Add this route to handle user area updates
+
+@app.route('/update-user-area', methods=['POST'])
+def update_user_area():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'})
+    
+    try:
+        # Get the area ID from the POST request
+        data = request.json
+        area_id = data.get('area_id')
+        
+        if not area_id:
+            return jsonify({'success': False, 'message': 'No area selected'})
+        
+        user_id = session['user_id']
+        
+        # Connect to the database
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Update the user's area
+        cursor.execute(
+            "UPDATE user SET area_id = ? WHERE user_id = ?",
+            (area_id, user_id)
+        )
+        
+        # Get the area name
+        cursor.execute("SELECT name FROM area WHERE area_id = ?", (area_id,))
+        area_name = cursor.fetchone()[0]
+        
+        # Find vehicle assigned to this area
+        cursor.execute("""
+            SELECT vehicle_id, type, license_plate, driver_name
+            FROM vehicle
+            WHERE area_id = ? AND status = 'Active'
+            LIMIT 1
+        """, (area_id,))
+        
+        vehicle_data = cursor.fetchone()
+        
+        if vehicle_data:
+            # Assign this vehicle to the user
+            cursor.execute(
+                "UPDATE user SET assigned_vehicle_id = ? WHERE user_id = ?",
+                (vehicle_data[0], user_id)
+            )
+            
+            vehicle_info = f"{vehicle_data[1] or 'Standard'} ({vehicle_data[2] or 'Not assigned'}) - Driver: {vehicle_data[3] or 'Unassigned'}"
+        else:
+            vehicle_info = None
+        
+        conn.commit()
+        conn.close()
+        
+        response_data = {
+            'success': True,
+            'area_name': area_name,
+            'message': 'Your area has been updated.',
+        }
+        
+        if vehicle_info:
+            response_data['vehicle_info'] = vehicle_info
+        else:
+            response_data['message'] += ' No vehicle is currently assigned to this area. An admin will assign a vehicle soon.'
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+# Add these routes for vehicle assignment
+
+@app.route('/admin/available-vehicles')
+def available_vehicles():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Get all active vehicles
+        cursor.execute("""
+            SELECT vehicle_id, type, license_plate, driver_name 
+            FROM vehicle 
+            WHERE status = 'Active' OR status IS NULL
+        """)
+        
+        vehicles = [
+            {
+                'vehicle_id': row[0],
+                'type': row[1] or 'Standard',
+                'license_plate': row[2] or 'Not assigned',
+                'driver_name': row[3] or 'Unassigned'
+            }
+            for row in cursor.fetchall()
+        ]
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'vehicles': vehicles
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/admin/assign-vehicle', methods=['POST'])
+def assign_vehicle():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        vehicle_id = data.get('vehicle_id')
+        
+        if not user_id or not vehicle_id:
+            return jsonify({'success': False, 'message': 'Missing user ID or vehicle ID'})
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Update the user's assigned vehicle
+        cursor.execute(
+            "UPDATE user SET assigned_vehicle_id = ? WHERE user_id = ?",
+            (vehicle_id, user_id)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Vehicle assigned successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+# Add these routes for area and vehicle assignment
+
+@app.route('/admin/assign-area-to-vehicle', methods=['POST'])
+def assign_area_to_vehicle():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        data = request.json
+        vehicle_id = data.get('vehicle_id')
+        area_id = data.get('area_id')
+        
+        if not vehicle_id or not area_id:
+            return jsonify({'success': False, 'message': 'Missing vehicle ID or area ID'})
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Assign area to vehicle
+        cursor.execute(
+            "UPDATE vehicle SET area_id = ? WHERE vehicle_id = ?",
+            (area_id, vehicle_id)
+        )
+        
+        # Get the area name
+        cursor.execute("SELECT name FROM area WHERE area_id = ?", (area_id,))
+        area_name = cursor.fetchone()[0]
+        
+        # Update route
+        cursor.execute(
+            "UPDATE vehicle SET route = ? WHERE vehicle_id = ?",
+            (area_name, vehicle_id)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Area assigned to vehicle successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/admin/get-vehicles-for-area')
+def get_vehicles_for_area():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        area_name = request.args.get('area_name', '')
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        if area_name:
+            # Get area ID from name
+            cursor.execute("SELECT area_id FROM area WHERE name = ?", (area_name,))
+            area_row = cursor.fetchone()
+            
+            if area_row:
+                area_id = area_row[0]
+                
+                # Get vehicles for this area
+                cursor.execute("""
+                    SELECT vehicle_id, type, license_plate, driver_name
+                    FROM vehicle
+                    WHERE area_id = ? AND status = 'Active'
+                """, (area_id,))
+                
+                vehicles = [
+                    {
+                        'vehicle_id': row[0],
+                        'type': row[1],
+                        'license_plate': row[2],
+                        'driver_name': row[3]
+                    }
+                    for row in cursor.fetchall()
+                ]
+            else:
+                # If area not found, return empty list
+                vehicles = []
+        else:
+            # If no area specified, get all active vehicles
+            cursor.execute("""
+                SELECT vehicle_id, type, license_plate, driver_name
+                FROM vehicle
+                WHERE status = 'Active'
+            """)
+            
+            vehicles = [
+                {
+                    'vehicle_id': row[0],
+                    'type': row[1],
+                    'license_plate': row[2],
+                    'driver_name': row[3]
+                }
+                for row in cursor.fetchall()
+            ]
+        
+        conn.close()
+        
+        return jsonify({'success': True, 'vehicles': vehicles})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/admin/assign-vehicle-to-user', methods=['POST'])
+def assign_vehicle_to_user():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        vehicle_id = data.get('vehicle_id')
+        
+        if not user_id or not vehicle_id:
+            return jsonify({'success': False, 'message': 'Missing user ID or vehicle ID'})
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Assign vehicle to user
+        cursor.execute(
+            "UPDATE user SET assigned_vehicle_id = ? WHERE user_id = ?",
+            (vehicle_id, user_id)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Vehicle assigned to user successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+# Add this route if you haven't already
+
+@app.route('/admin/get-areas')
+def get_areas():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT area_id, name FROM area")
+        areas = [{'area_id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({'success': True, 'areas': areas})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/admin/get-vehicle-area/<int:vehicle_id>')
+def get_vehicle_area(vehicle_id):
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT a.name 
+            FROM area a
+            JOIN vehicle v ON a.area_id = v.area_id
+            WHERE v.vehicle_id = ?
+        """, (vehicle_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            return jsonify({'success': True, 'area_name': result[0]})
+        else:
+            return jsonify({'success': True, 'area_name': None})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/admin/get-area-vehicles')
+def get_area_vehicles():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        area_name = request.args.get('area_name', '')
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        if area_name:
+            # Get area ID from name
+            cursor.execute("SELECT area_id FROM area WHERE name = ?", (area_name,))
+            area_row = cursor.fetchone()
+            
+            if area_row:
+                area_id = area_row[0]
+                
+                # Get vehicles for this area
+                cursor.execute("""
+                    SELECT vehicle_id, type, license_plate, driver_name
+                    FROM vehicle
+                    WHERE area_id = ? AND (status = 'Active' OR status IS NULL)
+                """, (area_id,))
+                
+                vehicles = [
+                    {
+                        'vehicle_id': row[0],
+                        'type': row[1],
+                        'license_plate': row[2],
+                        'driver_name': row[3]
+                    }
+                    for row in cursor.fetchall()
+                ]
+                
+                return jsonify({'success': True, 'vehicles': vehicles})
+            
+        # Return empty if no area or area not found
+        return jsonify({'success': True, 'vehicles': []})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 if __name__ == '__main__':
     init_db()  
