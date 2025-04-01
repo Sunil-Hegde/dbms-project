@@ -1,628 +1,855 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Signup - Waste Management System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="../static/images/favicon.png" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Arial', sans-serif;
-        }
-        
-        body {
-            background-color: #f0f9f0;
-            color: #333;
-            line-height: 1.6;
-        }
-        
-        header {
-            background: linear-gradient(135deg, #2c8a49, #135e25);
-            color: white;
-            padding: 1rem 0;
-            text-align: center;
-            position: relative;
-            margin-bottom: 2rem;
-        }
-        
-        .signup-container {
-            max-width: 600px;
-            margin: 2rem auto 6rem;
-            padding: 2.5rem;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        .role-btn {
-            width: 100%;
-            margin-bottom: 1rem;
-            padding: 1rem;
-            border-radius: 5px;
-            font-weight: 600;
-            border: none;
-            transition: all 0.3s ease;
-        }
-        
-        .role-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .btn-primary {
-            background-color: #2c8a49;
-            border-color: #2c8a49;
-        }
-        
-        .btn-primary:hover, .btn-primary:focus {
-            background-color: #237a3e;
-            border-color: #237a3e;
-        }
-        
-        .btn-success {
-            background-color: #4CAF50;
-            border-color: #4CAF50;
-        }
-        
-        .btn-success:hover, .btn-success:focus {
-            background-color: #3d8b40;
-            border-color: #3d8b40;
-        }
-        
-        .form-container {
-            display: none;
-            animation: fadeIn 0.5s;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .active-form {
-            display: block;
-        }
-        
-        .form-control {
-            padding: 0.8rem;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            margin-bottom: 0.5rem;
-        }
-        
-        .form-control:focus {
-            box-shadow: 0 0 0 3px rgba(44, 138, 73, 0.2);
-            border-color: #2c8a49;
-        }
-        
-        .form-label {
-            font-weight: 600;
-            color: #555;
-        }
-        
-        footer {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 1rem 0;
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-        }
-        
-        .back-link {
-            color: #2c8a49;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .back-link:hover {
-            color: #237a3e;
-            text-decoration: underline;
-        }
-        
-        .alert {
-            border-radius: 5px;
-            margin-bottom: 1.5rem;
-            padding: 1rem;
-        }
-        
-        .signup-progress {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 2rem;
-            position: relative;
-        }
-        
-        .progress-step {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background-color: #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-weight: bold;
-            z-index: 2;
-        }
-        
-        .progress-step.active {
-            background-color: #2c8a49;
-        }
-        
-        .progress-line {
-            position: absolute;
-            top: 15px;
-            left: 30px;
-            right: 30px;
-            height: 2px;
-            background-color: #ddd;
-            z-index: 1;
-        }
-        
-        .progress-completed {
-            position: absolute;
-            top: 15px;
-            left: 30px;
-            height: 2px;
-            background-color: #2c8a49;
-            z-index: 1;
-            width: 0%;
-            transition: width 0.3s ease;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Arial", sans-serif;
+      }
 
-        /* Add these new styles for the popup notifications */
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            max-width: 350px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            overflow: hidden;
-            z-index: 9999;
-            transform: translateX(400px);
-            transition: transform 0.4s ease-out;
+      body {
+        background-color: #f0f9f0;
+        color: #333;
+        line-height: 1.6;
+      }
+
+      header {
+        background: linear-gradient(135deg, #2c8a49, #135e25);
+        color: white;
+        padding: 1rem 0;
+        text-align: center;
+        position: relative;
+        margin-bottom: 2rem;
+      }
+
+      .signup-container {
+        max-width: 600px;
+        margin: 2rem auto 6rem;
+        padding: 2.5rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .role-btn {
+        width: 100%;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        border-radius: 5px;
+        font-weight: 600;
+        border: none;
+        transition: all 0.3s ease;
+      }
+
+      .role-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .btn-primary {
+        background-color: #2c8a49;
+        border-color: #2c8a49;
+      }
+
+      .btn-primary:hover,
+      .btn-primary:focus {
+        background-color: #237a3e;
+        border-color: #237a3e;
+      }
+
+      .btn-success {
+        background-color: #4caf50;
+        border-color: #4caf50;
+      }
+
+      .btn-success:hover,
+      .btn-success:focus {
+        background-color: #3d8b40;
+        border-color: #3d8b40;
+      }
+
+      .form-container {
+        display: none;
+        animation: fadeIn 0.5s;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
         }
-        
-        .notification.show {
-            transform: translateX(0);
+        to {
+          opacity: 1;
+          transform: translateY(0);
         }
-        
-        .notification-header {
-            padding: 12px 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .notification-title {
-            font-weight: 600;
-            font-size: 16px;
-        }
-        
-        .notification-close {
-            cursor: pointer;
-            font-size: 20px;
-            color: #777;
-        }
-        
-        .notification-body {
-            padding: 15px;
-        }
-        
-        .notification-message {
-            margin-bottom: 5px;
-        }
-        
-        .notification-progress {
-            height: 3px;
-            background-color: #ddd;
-            width: 100%;
-        }
-        
-        .notification-bar {
-            height: 100%;
-            width: 100%;
-            transition: width 5s linear;
-        }
-        
-        .notification-success .notification-header {
-            background-color: #2c8a49;
-            color: white;
-        }
-        
-        .notification-success .notification-bar {
-            background-color: #2c8a49;
-        }
-        
-        .notification-error .notification-header {
-            background-color: #dc3545;
-            color: white;
-        }
-        
-        .notification-error .notification-bar {
-            background-color: #dc3545;
-        }
-        
-        .notification-warning .notification-header {
-            background-color: #ffc107;
-            color: #333;
-        }
-        
-        .notification-warning .notification-bar {
-            background-color: #ffc107;
-        }
-        
-        .notification-info .notification-header {
-            background-color: #0dcaf0;
-            color: white;
-        }
-        
-        .notification-info .notification-bar {
-            background-color: #0dcaf0;
-        }
-        
-        .notification-redirect {
-            display: block;
-            margin-top: 10px;
-            color: #2c8a49;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        
-        .notification-redirect:hover {
-            text-decoration: underline;
-        }
+      }
+
+      .active-form {
+        display: block;
+      }
+
+      .form-control {
+        padding: 0.8rem;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+        margin-bottom: 0.5rem;
+      }
+
+      .form-control:focus {
+        box-shadow: 0 0 0 3px rgba(44, 138, 73, 0.2);
+        border-color: #2c8a49;
+      }
+
+      .form-label {
+        font-weight: 600;
+        color: #555;
+      }
+
+      footer {
+        background-color: #333;
+        color: white;
+        text-align: center;
+        padding: 1rem 0;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+      }
+
+      .back-link {
+        color: #2c8a49;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      .back-link:hover {
+        color: #237a3e;
+        text-decoration: underline;
+      }
+
+      .alert {
+        border-radius: 5px;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+      }
+
+      .signup-progress {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        position: relative;
+      }
+
+      .progress-step {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background-color: #ddd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: bold;
+        z-index: 2;
+      }
+
+      .progress-step.active {
+        background-color: #2c8a49;
+      }
+
+      .progress-line {
+        position: absolute;
+        top: 15px;
+        left: 30px;
+        right: 30px;
+        height: 2px;
+        background-color: #ddd;
+        z-index: 1;
+      }
+
+      .progress-completed {
+        position: absolute;
+        top: 15px;
+        left: 30px;
+        height: 2px;
+        background-color: #2c8a49;
+        z-index: 1;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+
+      /* Add these new styles for the popup notifications */
+      .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        max-width: 350px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+        z-index: 9999;
+        transform: translateX(400px);
+        transition: transform 0.4s ease-out;
+      }
+
+      .notification.show {
+        transform: translateX(0);
+      }
+
+      .notification-header {
+        padding: 12px 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #eee;
+      }
+
+      .notification-title {
+        font-weight: 600;
+        font-size: 16px;
+      }
+
+      .notification-close {
+        cursor: pointer;
+        font-size: 20px;
+        color: #777;
+      }
+
+      .notification-body {
+        padding: 15px;
+      }
+
+      .notification-message {
+        margin-bottom: 5px;
+      }
+
+      .notification-progress {
+        height: 3px;
+        background-color: #ddd;
+        width: 100%;
+      }
+
+      .notification-bar {
+        height: 100%;
+        width: 100%;
+        transition: width 5s linear;
+      }
+
+      .notification-success .notification-header {
+        background-color: #2c8a49;
+        color: white;
+      }
+
+      .notification-success .notification-bar {
+        background-color: #2c8a49;
+      }
+
+      .notification-error .notification-header {
+        background-color: #dc3545;
+        color: white;
+      }
+
+      .notification-error .notification-bar {
+        background-color: #dc3545;
+      }
+
+      .notification-warning .notification-header {
+        background-color: #ffc107;
+        color: #333;
+      }
+
+      .notification-warning .notification-bar {
+        background-color: #ffc107;
+      }
+
+      .notification-info .notification-header {
+        background-color: #0dcaf0;
+        color: white;
+      }
+
+      .notification-info .notification-bar {
+        background-color: #0dcaf0;
+      }
+
+      .notification-redirect {
+        display: block;
+        margin-top: 10px;
+        color: #2c8a49;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .notification-redirect:hover {
+        text-decoration: underline;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <header>
-        <div class="container">
-            <h1>Waste Management System</h1>
-            <p>Efficient, Sustainable, Smart</p>
-        </div>
+      <div class="container">
+        <h1>Waste Management System</h1>
+        <p>Efficient, Sustainable, Smart</p>
+      </div>
     </header>
 
     <div class="container">
-        <div class="signup-container">
-            <h2 class="text-center mb-3" style="color: #2c8a49;">Create an Account</h2>
-            <p class="text-center mb-4">Join our waste management platform to help build a sustainable future</p>
-            
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-            
-            <h5 class="text-center mb-3">Signup as:</h5>
-            
-            <div class="d-grid gap-3 mb-4">
-                <button class="btn btn-primary role-btn" onclick="showForm('user')">
-                    <i class="bi bi-person-plus-fill me-2"></i> User
-                </button>
-                <button class="btn btn-success role-btn" onclick="showForm('vehicle')">
-                    <i class="bi bi-truck me-2"></i> Vehicle
-                </button>
-            </div>
+      <div class="signup-container">
+        <h2 class="text-center mb-3" style="color: #2c8a49">
+          Create an Account
+        </h2>
+        <p class="text-center mb-4">
+          Join our waste management platform to help build a sustainable future
+        </p>
 
-            <!-- User Signup Form -->
-            <div id="user-form" class="form-container">
-                <div class="signup-progress">
-                    <div class="progress-step active">1</div>
-                    <div class="progress-step">2</div>
-                    <div class="progress-step">3</div>
-                    <div class="progress-step">4</div>
-                    <div class="progress-line"></div>
-                    <div class="progress-completed" id="user-progress"></div>
-                </div>
-                
-                <form action="/signup/user" method="POST" id="user-signup-form">
-                    <!-- Step 1: Basic Information -->
-                    <div class="form-step" id="user-step-1">
-                        <h5 class="mb-3">Personal Information</h5>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="first-name" class="form-label">First Name</label>
-                                <input type="text" class="form-control" id="first-name" name="first_name" placeholder="First name" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="middle-name" class="form-label">Middle Name</label>
-                                <input type="text" class="form-control" id="middle-name" name="middle_name" placeholder="Middle name (optional)">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="last-name" class="form-label">Last Name</label>
-                                <input type="text" class="form-control" id="last-name" name="last_name" placeholder="Last name" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="gender" class="form-label">Gender</label>
-                                <select class="form-select" id="gender" name="gender">
-                                    <option value="">Select gender</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="Other">Other</option>
-                                    <option value="Prefer not to say">Prefer not to say</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="age" class="form-label">Age</label>
-                                <input type="number" class="form-control" id="age" name="age" min="18" max="120" placeholder="Your age">
-                            </div>
-                        </div>
-                        <div class="d-grid">
-                            <button type="button" class="btn btn-primary py-2" onclick="nextStep('user', 1)">Continue</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 2: Contact Information -->
-                    <div class="form-step" id="user-step-2" style="display:none;">
-                        <h5 class="mb-3">Contact Information</h5>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email Address</label>
-                            <input type="email" class="form-control" id="email" name="email" placeholder="Enter your email" required>
-                            <small class="text-muted">This will be used for login</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="mobile" class="form-label">Mobile Number</label>
-                            <input type="tel" class="form-control" id="mobile" name="mobile" placeholder="Enter your mobile number">
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep('user', 2)">Back</button>
-                            <button type="button" class="btn btn-primary" onclick="nextStep('user', 2)">Continue</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 3: Address -->
-                    <div class="form-step" id="user-step-3" style="display:none;">
-                        <h5 class="mb-3">Residential Address</h5>
-                        <div class="mb-3">
-                            <label for="address" class="form-label">Address</label>
-                            <textarea class="form-control" id="address" name="address" rows="3" placeholder="Enter your complete address"></textarea>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep('user', 3)">Back</button>
-                            <button type="button" class="btn btn-primary" onclick="nextStep('user', 3)">Continue</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 4: Security -->
-                    <div class="form-step" id="user-step-4" style="display:none;">
-                        <h5 class="mb-3">Security Information</h5>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" placeholder="Create a strong password" required>
-                            <small class="text-muted">Password must be at least 8 characters</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="confirm-password" class="form-label">Confirm Password</label>
-                            <input type="password" class="form-control" id="confirm-password" placeholder="Confirm your password" required>
-                            <div id="password-match-error" class="text-danger" style="display:none;">
-                                Passwords do not match
-                            </div>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep('user', 4)">Back</button>
-                            <button type="submit" class="btn btn-primary" onclick="return validateForm()">Create Account</button>
-                        </div>
-                    </div>
-                </form>
-                
-                <div class="text-center mt-3">
-                    <p>Already have an account? <a href="/login" class="back-link">Log in</a></p>
-                </div>
-            </div>
+        {% with messages = get_flashed_messages(with_categories=true) %} {% if
+        messages %} {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %} {% endif %} {% endwith %}
 
-            <!-- Vehicle Signup Form -->
-            <div id="vehicle-form" class="form-container">
-                <div class="signup-progress">
-                    <div class="progress-step active">1</div>
-                    <div class="progress-step">2</div>
-                    <div class="progress-line"></div>
-                    <div class="progress-completed" id="vehicle-progress"></div>
-                </div>
-                
-                <form action="/signup/vehicle" method="POST">
-                    <div class="form-step" id="vehicle-step-1">
-                        <div class="mb-3">
-                            <label for="vehicle-identifier" class="form-label">Vehicle Identifier</label>
-                            <input type="text" class="form-control" id="vehicle-identifier" name="vehicle_identifier" placeholder="Enter vehicle identifier" required>
-                            <small class="text-muted">This will be used for login</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="driver-name" class="form-label">Driver Name</label>
-                            <input type="text" class="form-control" id="driver-name" name="driver_name" placeholder="Enter driver's name">
-                        </div>
-                        <div class="mb-3">
-                            <label for="driver-phone" class="form-label">Driver Phone</label>
-                            <input type="tel" class="form-control" id="driver-phone" name="driver_phone" placeholder="Enter driver's phone number">
-                        </div>
-                        <div class="d-grid">
-                            <button type="button" class="btn btn-success py-2" onclick="nextStep('vehicle', 1)">Continue</button>
-                        </div>
-                    </div>
-                    
-                    <div class="form-step" id="vehicle-step-2" style="display:none;">
-                        <div class="mb-3">
-                            <label for="vehicle-type" class="form-label">Vehicle Type</label>
-                            <select class="form-select" id="vehicle-type" name="type">
-                                <option value="">Select vehicle type</option>
-                                <option value="Truck">Truck</option>
-                                <option value="Van">Van</option>
-                                <option value="Pickup">Pickup</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="license-plate" class="form-label">License Plate</label>
-                            <input type="text" class="form-control" id="license-plate" name="license_plate" placeholder="Enter license plate number">
-                        </div>
-                        <div class="mb-3">
-                            <label for="route" class="form-label">Route</label>
-                            <input type="text" class="form-control" id="route" name="route" placeholder="Enter assigned route">
-                        </div>
-                        <div class="mb-3">
-                            <label for="vehicle-password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="vehicle-password" name="password" placeholder="Create a password" required>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep('vehicle', 2)">Back</button>
-                            <button type="submit" class="btn btn-success">Register Vehicle</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
+        <h5 class="text-center mb-3">Signup as:</h5>
 
-            <div class="text-center mt-4">
-                <a href="/" class="back-link">Back to Home</a>
-            </div>
+        <div class="d-grid gap-3 mb-4">
+          <button class="btn btn-primary role-btn" onclick="showForm('user')">
+            <i class="bi bi-person-plus-fill me-2"></i> User
+          </button>
+          <button
+            class="btn btn-success role-btn"
+            onclick="showForm('vehicle')"
+          >
+            <i class="bi bi-truck me-2"></i> Vehicle
+          </button>
         </div>
+
+        <!-- User Signup Form -->
+        <div id="user-form" class="form-container">
+          <div class="signup-progress">
+            <div class="progress-step active">1</div>
+            <div class="progress-step">2</div>
+            <div class="progress-step">3</div>
+            <div class="progress-step">4</div>
+            <div class="progress-line"></div>
+            <div class="progress-completed" id="user-progress"></div>
+          </div>
+
+          <form action="/signup/user" method="POST" id="user-signup-form">
+            <!-- Step 1: Basic Information -->
+            <div class="form-step" id="user-step-1">
+              <h5 class="mb-3">Personal Information</h5>
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="first-name" class="form-label">First Name</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="first-name"
+                    name="first_name"
+                    placeholder="First name"
+                    required
+                  />
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="middle-name" class="form-label"
+                    >Middle Name</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="middle-name"
+                    name="middle_name"
+                    placeholder="Middle name (optional)"
+                  />
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="last-name" class="form-label">Last Name</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="last-name"
+                    name="last_name"
+                    placeholder="Last name"
+                    required
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="gender" class="form-label">Gender</label>
+                  <select class="form-select" id="gender" name="gender">
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="age" class="form-label">Age</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="age"
+                    name="age"
+                    min="18"
+                    max="120"
+                    placeholder="Your age"
+                  />
+                </div>
+              </div>
+              <div class="d-grid">
+                <button
+                  type="button"
+                  class="btn btn-primary py-2"
+                  onclick="nextStep('user', 1)"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 2: Contact Information -->
+            <div class="form-step" id="user-step-2" style="display: none">
+              <h5 class="mb-3">Contact Information</h5>
+              <div class="mb-3">
+                <label for="email" class="form-label">Email Address</label>
+                <input
+                  type="email"
+                  class="form-control"
+                  id="email"
+                  name="email"
+                  placeholder="Enter your email"
+                  required
+                />
+                <small class="text-muted">This will be used for login</small>
+              </div>
+              <div class="mb-3">
+                <label for="mobile" class="form-label">Mobile Number</label>
+                <input
+                  type="tel"
+                  class="form-control"
+                  id="mobile"
+                  name="mobile"
+                  placeholder="Enter your mobile number"
+                />
+              </div>
+              <div class="d-flex justify-content-between">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  onclick="prevStep('user', 2)"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  onclick="nextStep('user', 2)"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 3: Address -->
+            <div class="form-step" id="user-step-3" style="display: none">
+              <h5 class="mb-3">Residential Address</h5>
+              <div class="mb-3">
+                <label for="address" class="form-label">Address</label>
+                <textarea
+                  class="form-control"
+                  id="address"
+                  name="address"
+                  rows="3"
+                  placeholder="Enter your complete address"
+                ></textarea>
+              </div>
+              <div class="d-flex justify-content-between">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  onclick="prevStep('user', 3)"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  onclick="nextStep('user', 3)"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 4: Security -->
+            <div class="form-step" id="user-step-4" style="display: none">
+              <h5 class="mb-3">Security Information</h5>
+              <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input
+                  type="password"
+                  class="form-control"
+                  id="password"
+                  name="password"
+                  placeholder="Create a strong password"
+                  required
+                />
+                <small class="text-muted"
+                  >Password must be at least 8 characters</small
+                >
+              </div>
+              <div class="mb-3">
+                <label for="confirm-password" class="form-label"
+                  >Confirm Password</label
+                >
+                <input
+                  type="password"
+                  class="form-control"
+                  id="confirm-password"
+                  placeholder="Confirm your password"
+                  required
+                />
+                <div
+                  id="password-match-error"
+                  class="text-danger"
+                  style="display: none"
+                >
+                  Passwords do not match
+                </div>
+              </div>
+              <div class="d-flex justify-content-between">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  onclick="prevStep('user', 4)"
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  onclick="return validateForm()"
+                >
+                  Create Account
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <div class="text-center mt-3">
+            <p>
+              Already have an account?
+              <a href="/login" class="back-link">Log in</a>
+            </p>
+          </div>
+        </div>
+
+        <!-- Vehicle Signup Form -->
+        <div id="vehicle-form" class="form-container">
+          <div class="signup-progress">
+            <div class="progress-step active">1</div>
+            <div class="progress-step">2</div>
+            <div class="progress-line"></div>
+            <div class="progress-completed" id="vehicle-progress"></div>
+          </div>
+
+          <form action="/signup/vehicle" method="POST">
+            <div class="form-step" id="vehicle-step-1">
+              <div class="mb-3">
+                <label for="vehicle-identifier" class="form-label"
+                  >Vehicle Identifier</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="vehicle-identifier"
+                  name="vehicle_identifier"
+                  placeholder="Enter vehicle identifier"
+                  required
+                />
+                <small class="text-muted">This will be used for login</small>
+              </div>
+              <div class="mb-3">
+                <label for="driver-name" class="form-label">Driver Name</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="driver-name"
+                  name="driver_name"
+                  placeholder="Enter driver's name"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="driver-phone" class="form-label"
+                  >Driver Phone</label
+                >
+                <input
+                  type="tel"
+                  class="form-control"
+                  id="driver-phone"
+                  name="driver_phone"
+                  placeholder="Enter driver's phone number"
+                />
+              </div>
+              <div class="d-grid">
+                <button
+                  type="button"
+                  class="btn btn-success py-2"
+                  onclick="nextStep('vehicle', 1)"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+
+            <div class="form-step" id="vehicle-step-2" style="display: none">
+              <div class="mb-3">
+                <label for="vehicle-type" class="form-label"
+                  >Vehicle Type</label
+                >
+                <select class="form-select" id="vehicle-type" name="type">
+                  <option value="">Select vehicle type</option>
+                  <option value="Truck">Truck</option>
+                  <option value="Van">Van</option>
+                  <option value="Pickup">Pickup</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="license-plate" class="form-label"
+                  >License Plate</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="license-plate"
+                  name="license_plate"
+                  placeholder="Enter license plate number"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="route" class="form-label">Route</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="route"
+                  name="route"
+                  placeholder="Enter assigned route"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="vehicle-password" class="form-label"
+                  >Password</label
+                >
+                <input
+                  type="password"
+                  class="form-control"
+                  id="vehicle-password"
+                  name="password"
+                  placeholder="Create a password"
+                  required
+                />
+              </div>
+              <div class="d-flex justify-content-between">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  onclick="prevStep('vehicle', 2)"
+                >
+                  Back
+                </button>
+                <button type="submit" class="btn btn-success">
+                  Register Vehicle
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="text-center mt-4">
+          <a href="/" class="back-link">Back to Home</a>
+        </div>
+      </div>
     </div>
 
     <footer>
-        <div class="container">
-            <p>&copy; 2025 Waste Management DBMS Project. All rights reserved.</p>
-        </div>
+      <div class="container">
+        <p>&copy; 2025 Waste Management DBMS Project. All rights reserved.</p>
+      </div>
     </footer>
 
     <script>
-        function showForm(role) {
-            // Hide all forms
-            document.querySelectorAll('.form-container').forEach(form => {
-                form.classList.remove('active-form');
-            });
-            
-            // Show selected form
-            document.getElementById(`${role}-form`).classList.add('active-form');
-            
-            // Reset steps
-            if (role === 'user') {
-                resetSteps('user', 4);
-            } else if (role === 'vehicle') {
-                resetSteps('vehicle', 2);
-            }
-        }
-        
-        function nextStep(role, currentStep) {
-            // Hide current step
-            document.getElementById(`${role}-step-${currentStep}`).style.display = 'none';
-            
-            // Show next step
-            document.getElementById(`${role}-step-${currentStep+1}`).style.display = 'block';
-            
-            // Update progress markers
-            document.querySelectorAll(`.${role}-form .progress-step`)[currentStep].classList.add('active');
-            
-            // Update progress bar
-            const maxSteps = role === 'user' ? 4 : 2;
-            const progressPercentage = (currentStep / (maxSteps - 1)) * 100;
-            document.getElementById(`${role}-progress`).style.width = `${progressPercentage}%`;
-        }
-        
-        function prevStep(role, currentStep) {
-            // Hide current step
-            document.getElementById(`${role}-step-${currentStep}`).style.display = 'none';
-            
-            // Show previous step
-            document.getElementById(`${role}-step-${currentStep-1}`).style.display = 'block';
-            
-            // Update progress markers
-            document.querySelectorAll(`.${role}-form .progress-step`)[currentStep-1].classList.remove('active');
-            
-            // Update progress bar
-            const maxSteps = role === 'user' ? 4 : 2;
-            const progressPercentage = ((currentStep-2) / (maxSteps - 1)) * 100;
-            document.getElementById(`${role}-progress`).style.width = `${progressPercentage}%`;
-        }
-        
-        function resetSteps(role, maxSteps) {
-            // Hide all steps except first
-            for (let i = 1; i <= maxSteps; i++) {
-                const step = document.getElementById(`${role}-step-${i}`);
-                if (i === 1) {
-                    step.style.display = 'block';
-                } else {
-                    step.style.display = 'none';
-                }
-            }
-            
-            // Reset progress steps
-            const progressSteps = document.querySelectorAll(`#${role}-form .progress-step`);
-            progressSteps.forEach((step, index) => {
-                if (index === 0) {
-                    step.classList.add('active');
-                } else {
-                    step.classList.remove('active');
-                }
-            });
-            
-            // Reset progress bar
-            document.getElementById(`${role}-progress`).style.width = '0%';
-        }
-        
-        function validateForm() {
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirm-password').value;
-            const errorElement = document.getElementById('password-match-error');
-            
-            if (password !== confirmPassword) {
-                errorElement.style.display = 'block';
-                showNotification('error', 'Validation Error', 'Passwords do not match. Please try again.');
-                return false;
-            } else if (password.length < 8) {
-                errorElement.style.display = 'none';
-                showNotification('warning', 'Password Warning', 'Password should be at least 8 characters long for better security.');
-            } else {
-                errorElement.style.display = 'none';
-            }
-            return true;
-        }
-        
-        // Initialize default form
-        document.addEventListener('DOMContentLoaded', function() {
-            showForm('user');
-            
-            // Check for query parameters that might indicate success or failure
-            const urlParams = new URLSearchParams(window.location.search);
-            const status = urlParams.get('status');
-            const message = urlParams.get('message');
-            
-            if (status === 'success') {
-                showNotification('success', 'Success!', message || 'Your account has been created successfully!', {
-                    url: '/login',
-                    text: 'Click here to log in or wait to be redirected...',
-                    auto: true
-                });
-            } else if (status === 'error') {
-                showNotification('error', 'Error', message || 'There was a problem creating your account.');
-            }
+      function showForm(role) {
+        // Hide all forms
+        document.querySelectorAll(".form-container").forEach((form) => {
+          form.classList.remove("active-form");
         });
-        
-        // Add notification system
-        function showNotification(type, title, message, redirect = null) {
-            const container = document.getElementById('notification-container');
-            const notificationId = 'notification-' + Date.now();
-            
-            const notification = document.createElement('div');
-            notification.id = notificationId;
-            notification.className = `notification notification-${type}`;
-            
-            let redirectHtml = '';
-            if (redirect) {
-                redirectHtml = `<a href="${redirect.url}" class="notification-redirect">${redirect.text}</a>`;
+
+        // Show selected form
+        document.getElementById(`${role}-form`).classList.add("active-form");
+
+        // Reset steps
+        if (role === "user") {
+          resetSteps("user", 4);
+        } else if (role === "vehicle") {
+          resetSteps("vehicle", 2);
+        }
+      }
+
+      function nextStep(role, currentStep) {
+        // Hide current step
+        document.getElementById(`${role}-step-${currentStep}`).style.display =
+          "none";
+
+        // Show next step
+        document.getElementById(
+          `${role}-step-${currentStep + 1}`
+        ).style.display = "block";
+
+        // Update progress markers
+        document
+          .querySelectorAll(`.${role}-form .progress-step`)
+          [currentStep].classList.add("active");
+
+        // Update progress bar
+        const maxSteps = role === "user" ? 4 : 2;
+        const progressPercentage = (currentStep / (maxSteps - 1)) * 100;
+        document.getElementById(
+          `${role}-progress`
+        ).style.width = `${progressPercentage}%`;
+      }
+
+      function prevStep(role, currentStep) {
+        // Hide current step
+        document.getElementById(`${role}-step-${currentStep}`).style.display =
+          "none";
+
+        // Show previous step
+        document.getElementById(
+          `${role}-step-${currentStep - 1}`
+        ).style.display = "block";
+
+        // Update progress markers
+        document
+          .querySelectorAll(`.${role}-form .progress-step`)
+          [currentStep - 1].classList.remove("active");
+
+        // Update progress bar
+        const maxSteps = role === "user" ? 4 : 2;
+        const progressPercentage = ((currentStep - 2) / (maxSteps - 1)) * 100;
+        document.getElementById(
+          `${role}-progress`
+        ).style.width = `${progressPercentage}%`;
+      }
+
+      function resetSteps(role, maxSteps) {
+        // Hide all steps except first
+        for (let i = 1; i <= maxSteps; i++) {
+          const step = document.getElementById(`${role}-step-${i}`);
+          if (i === 1) {
+            step.style.display = "block";
+          } else {
+            step.style.display = "none";
+          }
+        }
+
+        // Reset progress steps
+        const progressSteps = document.querySelectorAll(
+          `#${role}-form .progress-step`
+        );
+        progressSteps.forEach((step, index) => {
+          if (index === 0) {
+            step.classList.add("active");
+          } else {
+            step.classList.remove("active");
+          }
+        });
+
+        // Reset progress bar
+        document.getElementById(`${role}-progress`).style.width = "0%";
+      }
+
+      function validateForm() {
+        const password = document.getElementById("password").value;
+        const confirmPassword =
+          document.getElementById("confirm-password").value;
+        const errorElement = document.getElementById("password-match-error");
+
+        if (password !== confirmPassword) {
+          errorElement.style.display = "block";
+          showNotification(
+            "error",
+            "Validation Error",
+            "Passwords do not match. Please try again."
+          );
+          return false;
+        } else if (password.length < 8) {
+          errorElement.style.display = "none";
+          showNotification(
+            "warning",
+            "Password Warning",
+            "Password should be at least 8 characters long for better security."
+          );
+        } else {
+          errorElement.style.display = "none";
+        }
+        return true;
+      }
+
+      // Initialize default form
+      document.addEventListener("DOMContentLoaded", function () {
+        showForm("user");
+
+        // Check for query parameters that might indicate success or failure
+        const urlParams = new URLSearchParams(window.location.search);
+        const status = urlParams.get("status");
+        const message = urlParams.get("message");
+
+        if (status === "success") {
+          showNotification(
+            "success",
+            "Success!",
+            message || "Your account has been created successfully!",
+            {
+              url: "/login",
+              text: "Click here to log in or wait to be redirected...",
+              auto: true,
             }
-            
-            notification.innerHTML = `
+          );
+        } else if (status === "error") {
+          showNotification(
+            "error",
+            "Error",
+            message || "There was a problem creating your account."
+          );
+        }
+      });
+
+      // Add notification system
+      function showNotification(type, title, message, redirect = null) {
+        const container = document.getElementById("notification-container");
+        const notificationId = "notification-" + Date.now();
+
+        const notification = document.createElement("div");
+        notification.id = notificationId;
+        notification.className = `notification notification-${type}`;
+
+        let redirectHtml = "";
+        if (redirect) {
+          redirectHtml = `<a href="${redirect.url}" class="notification-redirect">${redirect.text}</a>`;
+        }
+
+        notification.innerHTML = `
                 <div class="notification-header">
                     <div class="notification-title">${title}</div>
                     <div class="notification-close" onclick="closeNotification('${notificationId}')">&times;</div>
@@ -635,60 +862,64 @@
                     <div class="notification-bar" id="${notificationId}-bar"></div>
                 </div>
             `;
-            
-            container.appendChild(notification);
-            
-            // Show notification with animation
-            setTimeout(() => {
-                notification.classList.add('show');
-                const bar = document.getElementById(`${notificationId}-bar`);
-                bar.style.width = '0';
-            }, 10);
-            
-            // Auto close after 5 seconds
-            const timeout = setTimeout(() => {
-                closeNotification(notificationId);
-                
-                // If redirect is provided, navigate after the notification closes
-                if (redirect && redirect.auto) {
-                    window.location.href = redirect.url;
-                }
-            }, 5000);
-            
-            // Store timeout to clear it if closed manually
-            notification.dataset.timeout = timeout;
-        }
-        
-        function closeNotification(id) {
-            const notification = document.getElementById(id);
-            if (!notification) return;
-            
-            // Clear the auto-close timeout
-            clearTimeout(notification.dataset.timeout);
-            
-            // Hide with animation
-            notification.classList.remove('show');
-            
-            // Remove after animation completes
-            setTimeout(() => {
-                notification.remove();
-            }, 400);
-        }
-        
-        // Submit form with AJAX to show notifications
-        document.getElementById('user-signup-form').addEventListener('submit', function(e) {
-            if (!validateForm()) {
-                e.preventDefault();
-                return false;
-            }
-            
-            // Show loading notification
-            showNotification('info', 'Please wait', 'Creating your account...');
+
+        container.appendChild(notification);
+
+        // Show notification with animation
+        setTimeout(() => {
+          notification.classList.add("show");
+          const bar = document.getElementById(`${notificationId}-bar`);
+          bar.style.width = "0";
+        }, 10);
+
+        // Auto close after 5 seconds
+        const timeout = setTimeout(() => {
+          closeNotification(notificationId);
+
+          // If redirect is provided, navigate after the notification closes
+          if (redirect && redirect.auto) {
+            window.location.href = redirect.url;
+          }
+        }, 5000);
+
+        // Store timeout to clear it if closed manually
+        notification.dataset.timeout = timeout;
+      }
+
+      function closeNotification(id) {
+        const notification = document.getElementById(id);
+        if (!notification) return;
+
+        // Clear the auto-close timeout
+        clearTimeout(notification.dataset.timeout);
+
+        // Hide with animation
+        notification.classList.remove("show");
+
+        // Remove after animation completes
+        setTimeout(() => {
+          notification.remove();
+        }, 400);
+      }
+
+      // Submit form with AJAX to show notifications
+      document
+        .getElementById("user-signup-form")
+        .addEventListener("submit", function (e) {
+          if (!validateForm()) {
+            e.preventDefault();
+            return false;
+          }
+
+          // Show loading notification
+          showNotification("info", "Please wait", "Creating your account...");
         });
-        
-        // Also attach to vehicle form
-        document.querySelector('#vehicle-form form').addEventListener('submit', function() {
-            showNotification('info', 'Please wait', 'Registering vehicle...');
+
+      // Also attach to vehicle form
+      document
+        .querySelector("#vehicle-form form")
+        .addEventListener("submit", function () {
+          showNotification("info", "Please wait", "Registering vehicle...");
         });
     </script>
 
@@ -696,6 +927,9 @@
     <div id="notification-container"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-</body>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+  </body>
 </html>

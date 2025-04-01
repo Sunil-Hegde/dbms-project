@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS reward (
     points INTEGER NOT NULL,                     -- Reward points
     status VARCHAR(20) DEFAULT 'Pending',        -- Status of the reward (e.g., Pending, Approved)
     r_date DATETIME DEFAULT CURRENT_TIMESTAMP,   -- Date of reward issuance
+    waste_id INTEGER REFERENCES waste(waste_id), -- Foreign key to the `waste` table
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
 );
 
@@ -52,6 +53,10 @@ CREATE TABLE IF NOT EXISTS waste (
     bio_wt FLOAT NOT NULL,                      -- Weight of biodegradable waste
     non_bio_wt FLOAT NOT NULL,                  -- Weight of non-biodegradable waste
     c_date_time DATETIME DEFAULT CURRENT_TIMESTAMP, -- Collection date and time
+    notes TEXT,                     -- Additional notes (optional)
+    waste_tag VARCHAR(50),                      -- Tag for waste quality (e.g., "Segregated Properly")
+    reward_status VARCHAR(20) DEFAULT 'Pending', -- Status of reward (Pending/Given)
+    reward_points INTEGER DEFAULT 0,             -- Points awarded for this collection
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
     FOREIGN KEY (vehicle_id) REFERENCES vehicle(vehicle_id) ON DELETE CASCADE
 );

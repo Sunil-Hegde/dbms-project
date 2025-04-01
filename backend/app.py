@@ -248,14 +248,17 @@ def user_dashboard():
         if vehicle_data:
             assigned_vehicle = f"{vehicle_data[0] or 'Standard'} ({vehicle_data[1] or 'Not assigned'}) - Driver: {vehicle_data[2] or 'Unassigned'}"
     
-    # Get total waste given by user
+    # Get total waste given by user (separate wet and dry)
     cursor.execute("""
-        SELECT COALESCE(SUM(bio_wt + non_bio_wt), 0)
+        SELECT COALESCE(SUM(bio_wt), 0), COALESCE(SUM(non_bio_wt), 0)
         FROM waste
         WHERE user_id = ?
     """, (user_id,))
     
-    total_waste = cursor.fetchone()[0] or 0
+    waste_data = cursor.fetchone()
+    total_wet_waste = waste_data[0] or 0
+    total_dry_waste = waste_data[1] or 0
+    total_waste = total_wet_waste + total_dry_waste
     
     # Get user complaints
     cursor.execute("""
@@ -277,6 +280,103 @@ def user_dashboard():
         for row in cursor.fetchall()
     ]
     
+    # Check if notes column exists in waste table
+    cursor.execute("PRAGMA table_info(waste)")
+    columns = cursor.fetchall()
+    notes_column_exists = any(col[1] == 'notes' for col in columns)
+    
+    # Get waste collection history - with check for notes column
+    if notes_column_exists:
+        cursor.execute("""
+            SELECT w.waste_id, w.c_date_time, w.bio_wt, w.non_bio_wt, v.type, v.license_plate, 
+                   w.notes
+            FROM waste w
+            LEFT JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+            WHERE w.user_id = ?
+            ORDER BY w.c_date_time DESC
+        """, (user_id,))
+    else:
+        cursor.execute("""
+            SELECT w.waste_id, w.c_date_time, w.bio_wt, w.non_bio_wt, v.type, v.license_plate
+            FROM waste w
+            LEFT JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+            WHERE w.user_id = ?
+            ORDER BY w.c_date_time DESC
+        """, (user_id,))
+    
+    waste_collections = []
+    for row in cursor.fetchall():
+        vehicle_info = f"{row[4] or 'Unknown'} ({row[5] or 'N/A'})"
+        if notes_column_exists:
+            waste_collections.append({
+                'collection_id': row[0],
+                'collection_date': row[1],
+                'wet_waste_kg': row[2],
+                'dry_waste_kg': row[3],
+                'total_waste_kg': row[2] + row[3],
+                'vehicle_id': vehicle_info,
+                'notes': row[6]
+            })
+        else:
+            waste_collections.append({
+                'collection_id': row[0],
+                'collection_date': row[1],
+                'wet_waste_kg': row[2],
+                'dry_waste_kg': row[3],
+                'total_waste_kg': row[2] + row[3],
+                'vehicle_id': vehicle_info,
+                'notes': 'N/A'
+            })
+    
+    # Get total points
+    cursor.execute("""
+        SELECT u_points FROM user WHERE user_id = ?
+    """, (user_id,))
+    total_points = cursor.fetchone()[0] or 0
+    
+    # Update waste_collections to include reward information
+    if all([cursor.execute("PRAGMA table_info(waste)").fetchall(), 
+           any(col[1] == 'waste_tag' for col in cursor.execute("PRAGMA table_info(waste)").fetchall()),
+           any(col[1] == 'reward_status' for col in cursor.execute("PRAGMA table_info(waste)").fetchall()),
+           any(col[1] == 'reward_points' for col in cursor.execute("PRAGMA table_info(waste)").fetchall())]):
+        cursor.execute("""
+            SELECT w.waste_id, w.c_date_time, w.bio_wt, w.non_bio_wt, v.type, v.license_plate, 
+                   w.notes, w.waste_tag, w.reward_status, w.reward_points
+            FROM waste w
+            LEFT JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+            WHERE w.user_id = ?
+            ORDER BY w.c_date_time DESC
+        """, (user_id,))
+        
+        waste_collections = []
+        for row in cursor.fetchall():
+            vehicle_info = f"{row[4] or 'Unknown'} ({row[5] or 'N/A'})"
+            waste_collections.append({
+                'collection_id': row[0],
+                'collection_date': row[1],
+                'wet_waste_kg': row[2],
+                'dry_waste_kg': row[3],
+                'total_waste_kg': row[2] + row[3],
+                'vehicle_id': vehicle_info,
+                'notes': row[6] or 'N/A',
+                'waste_tag': row[7] or 'Not Tagged',
+                'reward_status': row[8] or 'Pending',
+                'reward_points': row[9] or 0
+            })
+    else:
+        # Fallback logic: Use the existing waste collection data or initialize an empty list
+        waste_collections = waste_collections or [
+            {
+                'collection_id': None,
+                'collection_date': 'N/A',
+                'wet_waste_kg': 0,
+                'dry_waste_kg': 0,
+                'total_waste_kg': 0,
+                'vehicle_id': 'N/A',
+                'notes': 'N/A'
+            }
+        ]
+    
     conn.close()
     
     # Check if user has selected an area
@@ -289,11 +389,16 @@ def user_dashboard():
         user_phone=user_data[3] or "Not provided",
         user_address=user_data[4] or "Not provided",
         current_area=user_data[6],  # area_name
+        user_area_id=user_data[5],  # area_id
         assigned_vehicle=assigned_vehicle,
         total_waste=total_waste,
+        total_wet_waste=total_wet_waste,
+        total_dry_waste=total_dry_waste,
         areas=areas,
         complaints=complaints,
-        has_selected_area=has_selected_area
+        waste_collections=waste_collections,
+        has_selected_area=has_selected_area,
+        total_points=total_points
     )
 
 @app.route('/update-profile', methods=['POST'])
@@ -488,6 +593,115 @@ def admin_dashboard():
             'status_class': status_class
         })
     
+    # Check if notes column exists in waste table
+    cursor.execute("PRAGMA table_info(waste)")
+    columns = cursor.fetchall()
+    notes_column_exists = any(col[1] == 'notes' for col in columns)
+    
+    # Fetch recent waste collections
+    if notes_column_exists:
+        cursor.execute("""
+            SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
+                w.c_date_time, w.bio_wt, w.non_bio_wt, v.vehicle_id, 
+                a.name as area_name, w.notes
+            FROM waste w
+            JOIN user u ON w.user_id = u.user_id
+            JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+            LEFT JOIN area a ON u.area_id = a.area_id
+            ORDER BY w.c_date_time DESC
+            LIMIT 10
+        """)
+    else:
+        cursor.execute("""
+            SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
+                w.c_date_time, w.bio_wt, w.non_bio_wt, v.vehicle_id, 
+                a.name as area_name
+            FROM waste w
+            JOIN user u ON w.user_id = u.user_id
+            JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+            LEFT JOIN area a ON u.area_id = a.area_id
+            ORDER BY w.c_date_time DESC
+            LIMIT 10
+        """)
+    
+    recent_collections = []
+    for row in cursor.fetchall():
+        if notes_column_exists:
+            recent_collections.append({
+                'collection_id': row[0],
+                'user_name': row[1],
+                'collection_date': row[2],
+                'wet_waste_kg': row[3],
+                'dry_waste_kg': row[4],
+                'total_waste_kg': row[3] + row[4],
+                'vehicle_id': row[5],
+                'area_name': row[6],
+                'notes': row[7]
+            })
+        else:
+            recent_collections.append({
+                'collection_id': row[0],
+                'user_name': row[1],
+                'collection_date': row[2],
+                'wet_waste_kg': row[3],
+                'dry_waste_kg': row[4],
+                'total_waste_kg': row[3] + row[4],
+                'vehicle_id': row[5],
+                'area_name': row[6],
+                'notes': 'N/A'
+            })
+    
+    # Fetch all waste collections for the modal
+    if notes_column_exists:
+        cursor.execute("""
+            SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
+                w.c_date_time, w.bio_wt, w.non_bio_wt, v.vehicle_id, 
+                a.name as area_name, w.notes
+            FROM waste w
+            JOIN user u ON w.user_id = u.user_id
+            JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+            LEFT JOIN area a ON u.area_id = a.area_id
+            ORDER BY w.c_date_time DESC
+        """)
+    else:
+        cursor.execute("""
+            SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
+                w.c_date_time, w.bio_wt, w.non_bio_wt, v.vehicle_id, 
+                a.name as area_name
+            FROM waste w
+            JOIN user u ON w.user_id = u.user_id
+            JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+            LEFT JOIN area a ON u.area_id = a.area_id
+            ORDER BY w.c_date_time DESC
+        """)
+    
+    collections = []
+    for row in cursor.fetchall():
+        if notes_column_exists:
+            collections.append({
+                'collection_id': row[0],
+                'user_name': row[1],
+                'collection_date': row[2],
+                'wet_waste_kg': row[3],
+                'dry_waste_kg': row[4],
+                'total_waste_kg': row[3] + row[4],
+                'vehicle_id': row[5],
+                'area_name': row[6],
+                'notes': row[7]
+            })
+        else:
+            collections.append({
+                'collection_id': row[0],
+                'user_name': row[1],
+                'collection_date': row[2],
+                'wet_waste_kg': row[3],
+                'dry_waste_kg': row[4],
+                'total_waste_kg': row[3] + row[4],
+                'vehicle_id': row[5],
+                'area_name': row[6],
+                'notes': 'N/A'
+            })
+    
     # Fetch all areas for the area assignment dropdown
     cursor.execute("SELECT area_id, name FROM area")
     areas = [{'area_id': row[0], 'name': row[1]} for row in cursor.fetchall()]
@@ -504,7 +718,9 @@ def admin_dashboard():
         users=users,
         vehicles=vehicles,
         complaints=complaints,
-        areas=areas
+        areas=areas,
+        recent_collections=recent_collections,
+        collections=collections
     )
 
 @app.route('/admin/resolve-complaint/<int:complaint_id>', methods=['POST'])
@@ -583,51 +799,220 @@ def vehicle_dashboard():
 
     # Fetch vehicle data
     cursor.execute("""
-        SELECT vehicle_identifier, driver_name, driver_phone, type, license_plate, route
+        SELECT vehicle_id, vehicle_identifier, driver_name, driver_phone, type, 
+               license_plate, route, area_id, status
         FROM vehicle WHERE vehicle_id = ?
     """, (vehicle_id,))
-    vehicle_data = cursor.fetchone()
+    vehicle_row = cursor.fetchone()
+    
+    if not vehicle_row:
+        flash('Vehicle not found.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Create vehicle object
+    vehicle = {
+        'vehicle_id': vehicle_row[0],
+        'vehicle_identifier': vehicle_row[1],
+        'driver_name': vehicle_row[2] or 'Not assigned',
+        'driver_phone': vehicle_row[3] or 'N/A',
+        'type': vehicle_row[4] or 'Standard',
+        'license_plate': vehicle_row[5] or 'Not assigned',
+        'route': vehicle_row[6] or 'Not assigned',
+        'area_id': vehicle_row[7],
+        'status': vehicle_row[8] or 'Active',
+        'status_class': 'collected' if vehicle_row[8] == 'Active' else 'pending'
+    }
+    
+    # Get area name if assigned
+    if vehicle['area_id']:
+        cursor.execute("SELECT name FROM area WHERE area_id = ?", (vehicle['area_id'],))
+        area_row = cursor.fetchone()
+        vehicle['area_name'] = area_row[0] if area_row else 'Unknown Area'
+    else:
+        vehicle['area_name'] = 'Not Assigned'
 
-    # Fetch waste collection history
+    # Fetch assigned users
     cursor.execute("""
-        SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
-               w.bio_wt, w.non_bio_wt, w.c_date_time
-        FROM waste w
-        JOIN user u ON w.user_id = u.user_id
-        WHERE w.vehicle_id = ?
-        ORDER BY w.c_date_time DESC
-        LIMIT 20
+        SELECT u.user_id, u.first_name || ' ' || u.last_name AS name, 
+               u.address, u.mobile AS phone
+        FROM user u
+        WHERE u.assigned_vehicle_id = ?
     """, (vehicle_id,))
-    collections = cursor.fetchall()
+    
+    users_data = cursor.fetchall()
+    
+    # Get today's date in YYYY-MM-DD format
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    # Check which users have collection records for today
+    assigned_users = []
+    for user_row in users_data:
+        # Check if user has waste collection today
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM waste 
+            WHERE user_id = ? AND vehicle_id = ? AND date(c_date_time) = ?
+        """, (user_row[0], vehicle_id, today))
+        
+        has_collection = cursor.fetchone()[0] > 0
+        
+        assigned_users.append({
+            'user_id': user_row[0],
+            'name': user_row[1],
+            'address': user_row[2] or 'No address provided',
+            'phone': user_row[3] or 'No phone provided',
+            'today_collection': has_collection
+        })
+
+    # Count today's collections
+    cursor.execute("""
+        SELECT COUNT(*) 
+        FROM waste 
+        WHERE vehicle_id = ? AND date(c_date_time) = ?
+    """, (vehicle_id, today))
+    today_collections = cursor.fetchone()[0]
+
+    # Get total wet waste
+    cursor.execute("""
+        SELECT COALESCE(SUM(bio_wt), 0)
+        FROM waste
+        WHERE vehicle_id = ?
+    """, (vehicle_id,))
+    total_wet_waste = cursor.fetchone()[0] or 0
+
+    # Get total dry waste
+    cursor.execute("""
+        SELECT COALESCE(SUM(non_bio_wt), 0)
+        FROM waste
+        WHERE vehicle_id = ?
+    """, (vehicle_id,))
+    total_dry_waste = cursor.fetchone()[0] or 0
+
+    # Check if notes column exists in waste table
+    cursor.execute("PRAGMA table_info(waste)")
+    columns = cursor.fetchall()
+    notes_column_exists = any(col[1] == 'notes' for col in columns)
+
+    # Get recent collections
+    if notes_column_exists:
+        # Use the notes column if it exists
+        cursor.execute("""
+            SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
+                   w.bio_wt, w.non_bio_wt, w.c_date_time, w.notes
+            FROM waste w
+            JOIN user u ON w.user_id = u.user_id
+            WHERE w.vehicle_id = ?
+            ORDER BY w.c_date_time DESC
+            LIMIT 10
+        """, (vehicle_id,))
+    else:
+        # Skip the notes column if it doesn't exist
+        cursor.execute("""
+            SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
+                   w.bio_wt, w.non_bio_wt, w.c_date_time
+            FROM waste w
+            JOIN user u ON w.user_id = u.user_id
+            WHERE w.vehicle_id = ?
+            ORDER BY w.c_date_time DESC
+            LIMIT 10
+        """, (vehicle_id,))
+    
+    recent_collections = []
+    for row in cursor.fetchall():
+        if notes_column_exists:
+            recent_collections.append({
+                'waste_id': row[0],
+                'user_name': row[1],
+                'wet_waste_kg': row[2],
+                'dry_waste_kg': row[3],
+                'total_waste_kg': row[2] + row[3],
+                'collection_date': row[4],
+                'notes': row[5]
+            })
+        else:
+            recent_collections.append({
+                'waste_id': row[0],
+                'user_name': row[1],
+                'wet_waste_kg': row[2],
+                'dry_waste_kg': row[3],
+                'total_waste_kg': row[2] + row[3],
+                'collection_date': row[4],
+                'notes': 'N/A'  # Default value when notes column doesn't exist
+            })
+
+    # Get all collection history - same approach with checking for notes column
+    if notes_column_exists:
+        cursor.execute("""
+            SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
+                   w.bio_wt, w.non_bio_wt, w.c_date_time, w.notes
+            FROM waste w
+            JOIN user u ON w.user_id = u.user_id
+            WHERE w.vehicle_id = ?
+            ORDER BY w.c_date_time DESC
+        """, (vehicle_id,))
+    else:
+        cursor.execute("""
+            SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
+                   w.bio_wt, w.non_bio_wt, w.c_date_time
+            FROM waste w
+            JOIN user u ON w.user_id = u.user_id
+            WHERE w.vehicle_id = ?
+            ORDER BY w.c_date_time DESC
+        """, (vehicle_id,))
+    
+    collection_history = []
+    for row in cursor.fetchall():
+        if notes_column_exists:
+            collection_history.append({
+                'collection_id': row[0],
+                'user_name': row[1],
+                'wet_waste_kg': row[2],
+                'dry_waste_kg': row[3],
+                'total_waste_kg': row[2] + row[3],
+                'collection_date': row[4],
+                'notes': row[5]
+            })
+        else:
+            collection_history.append({
+                'collection_id': row[0],
+                'user_name': row[1],
+                'wet_waste_kg': row[2],
+                'dry_waste_kg': row[3],
+                'total_waste_kg': row[2] + row[3],
+                'collection_date': row[4],
+                'notes': 'N/A'  # Default value when notes column doesn't exist
+            })
+
+    # Example route stops data (in a real app, this would come from a routing algorithm)
+    route_stops = []
+    for i, user in enumerate(assigned_users):
+        if not user['today_collection']:  # Only include users who haven't had collection today
+            route_stops.append({
+                'user_name': user['name'],
+                'address': user['address'],
+                'estimated_time': f"{9 + i//2}:{(i % 2) * 30:02d}",
+                'completed': False
+            })
 
     conn.close()
 
-    if vehicle_data:
-        vehicle_identifier, driver_name, driver_phone, vehicle_type, license_plate, route = vehicle_data
-        return render_template(
-            'vehicleDashboard.html',
-            vehicle_identifier=vehicle_identifier,
-            driver_name=driver_name or 'Not assigned',
-            driver_phone=driver_phone or 'N/A',
-            vehicle_type=vehicle_type or 'Standard',
-            license_plate=license_plate or 'Not assigned',
-            route=route or 'Not assigned',
-            collections=[
-                {
-                    'id': c[0],
-                    'user': c[1],
-                    'bio_waste': c[2],
-                    'non_bio_waste': c[3],
-                    'total_waste': c[2] + c[3],
-                    'date': c[4]
-                }
-                for c in collections
-            ]
-        )
-    else:
-        flash('Vehicle not found.', 'danger')
-        return redirect(url_for('home'))
+    # Format today's date for display
+    current_date = datetime.now().strftime('%B %d, %Y')
 
+    return render_template(
+        'vehicleDashboard.html',
+        vehicle=vehicle,
+        driver_name=session.get('driver_name', 'Driver'),
+        assigned_users=assigned_users,
+        assigned_users_count=len(assigned_users),
+        today_collections=today_collections,
+        total_wet_waste=total_wet_waste,
+        total_dry_waste=total_dry_waste,
+        recent_collections=recent_collections,
+        collection_history=collection_history,
+        route_stops=route_stops,
+        current_date=current_date
+    )
 
 @app.route('/admin/complaint-details/<int:complaint_id>')
 def get_complaint_details(complaint_id):
@@ -676,6 +1061,60 @@ def get_complaint_details(complaint_id):
     
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
+# Add this route for collection details
+@app.route('/admin/collection-details/<int:collection_id>')
+def get_collection_details(collection_id):
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Fetch collection details with user information
+        cursor.execute("""
+            SELECT w.waste_id, w.c_date_time, w.bio_wt, w.non_bio_wt, 
+                   w.notes, w.waste_tag, w.reward_status, w.reward_points,
+                   u.first_name || ' ' || u.last_name AS user_name,
+                   u.email AS user_email, u.mobile AS user_phone,
+                   v.vehicle_id, a.name AS area_name
+            FROM waste w
+            JOIN user u ON w.user_id = u.user_id
+            JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+            LEFT JOIN area a ON u.area_id = a.area_id
+            WHERE w.waste_id = ?
+        """, (collection_id,))
+        
+        collection_data = cursor.fetchone()
+        conn.close()
+        
+        if not collection_data:
+            return jsonify({'success': False, 'message': 'Collection not found'})
+        
+        # Format the collection data
+        collection = {
+            'collection_id': collection_data[0],
+            'collection_date': collection_data[1],
+            'wet_waste_kg': collection_data[2],
+            'dry_waste_kg': collection_data[3],
+            'total_waste_kg': collection_data[2] + collection_data[3],
+            'notes': collection_data[4],
+            'waste_tag': collection_data[5],
+            'reward_status': collection_data[6] or 'Pending',
+            'reward_points': collection_data[7] or 0,
+            'user_name': collection_data[8],
+            'user_email': collection_data[9],
+            'user_phone': collection_data[10],
+            'vehicle_id': collection_data[11],
+            'area_name': collection_data[12],
+        }
+        
+        return jsonify({'success': True, 'collection': collection})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 # Add this route to handle user area updates
 
 @app.route('/update-user-area', methods=['POST'])
@@ -1035,6 +1474,181 @@ def get_area_vehicles():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+@app.route('/vehicle/record-collection', methods=['POST'])
+def record_collection():
+    if 'vehicle_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        collection_date = data.get('collection_date')
+        wet_waste_kg = float(data.get('wet_waste_kg', 0))
+        dry_waste_kg = float(data.get('dry_waste_kg', 0))
+        notes = data.get('notes', '')
+        waste_tag = data.get('waste_tag', '')
+        vehicle_id = session['vehicle_id']
+        
+        if not user_id or not collection_date:
+            return jsonify({'success': False, 'message': 'Missing required fields'})
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Check if new columns exist in waste table
+        cursor.execute("PRAGMA table_info(waste)")
+        columns = cursor.fetchall()
+        waste_tag_exists = any(col[1] == 'waste_tag' for col in columns)
+        reward_status_exists = any(col[1] == 'reward_status' for col in columns)
+        reward_points_exists = any(col[1] == 'reward_points' for col in columns)
+        notes_column_exists = any(col[1] == 'notes' for col in columns)
+        
+        # Construct the query based on available columns
+        if all([waste_tag_exists, reward_status_exists, reward_points_exists, notes_column_exists]):
+            cursor.execute(
+                """
+                INSERT INTO waste (user_id, vehicle_id, bio_wt, non_bio_wt, c_date_time, notes, waste_tag, reward_status, reward_points)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', 0)
+                """,
+                (user_id, vehicle_id, wet_waste_kg, dry_waste_kg, collection_date, notes, waste_tag)
+            )
+        elif notes_column_exists:
+            cursor.execute(
+                """
+                INSERT INTO waste (user_id, vehicle_id, bio_wt, non_bio_wt, c_date_time, notes)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (user_id, vehicle_id, wet_waste_kg, dry_waste_kg, collection_date, notes)
+            )
+        else:
+            cursor.execute(
+                """
+                INSERT INTO waste (user_id, vehicle_id, bio_wt, non_bio_wt, c_date_time)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (user_id, vehicle_id, wet_waste_kg, dry_waste_kg, collection_date)
+            )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Collection recorded successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+# Update reward route
+@app.route('/admin/update-reward', methods=['POST'])
+def update_reward():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        data = request.json
+        collection_id = data.get('collection_id')
+        points = data.get('points')
+        
+        if not collection_id or points is None:
+            return jsonify({'success': False, 'message': 'Missing required fields'})
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Get user ID for this collection
+        cursor.execute("SELECT user_id FROM waste WHERE waste_id = ?", (collection_id,))
+        user_row = cursor.fetchone()
+        
+        if not user_row:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Collection not found'})
+        
+        user_id = user_row[0]
+        
+        # Update the waste record
+        cursor.execute(
+            "UPDATE waste SET reward_status = 'Given', reward_points = ? WHERE waste_id = ?",
+            (points, collection_id)
+        )
+        
+        # Create a reward record
+        cursor.execute(
+            """
+            INSERT INTO reward (user_id, points, status, waste_id)
+            VALUES (?, ?, 'Approved', ?)
+            """,
+            (user_id, points, collection_id)
+        )
+        
+        # Update user's total points
+        cursor.execute(
+            "UPDATE user SET u_points = u_points + ? WHERE user_id = ?",
+            (points, user_id)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': f'Reward of {points} points has been awarded'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+# Reset reward route
+@app.route('/admin/reset-reward', methods=['POST'])
+def reset_reward():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        data = request.json
+        collection_id = data.get('collection_id')
+        
+        if not collection_id:
+            return jsonify({'success': False, 'message': 'Missing collection ID'})
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Get current reward points and user ID
+        cursor.execute(
+            "SELECT reward_points, user_id FROM waste WHERE waste_id = ?", 
+            (collection_id,)
+        )
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Collection not found'})
+        
+        current_points = row[0] or 0
+        user_id = row[1]
+        
+        # Reset waste record's reward
+        cursor.execute(
+            "UPDATE waste SET reward_status = 'Pending', reward_points = 0 WHERE waste_id = ?",
+            (collection_id,)
+        )
+        
+        # Delete reward record(s) for this waste
+        cursor.execute(
+            "DELETE FROM reward WHERE waste_id = ?",
+            (collection_id,)
+        )
+        
+        # Subtract points from user's total
+        cursor.execute(
+            "UPDATE user SET u_points = u_points - ? WHERE user_id = ?",
+            (current_points, user_id)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Reward has been reset'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 if __name__ == '__main__':
     init_db()  
     app.run(debug=True)
+

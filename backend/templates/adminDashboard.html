@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Waste Management Admin Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="../static/images/favicon.png" />
     <style>
       * {
         margin: 0;
@@ -427,9 +428,9 @@
           <i>🔔</i>
           <span>Complaints</span>
         </div>
-        <div class="menu-item">
-          <i>⚙️</i>
-          <span>Settings</span>
+        <div class="menu-item" onclick="openModal('collectionsModal')">
+          <i>♻️</i>
+          <span>Collections</span>
         </div>
         <div class="menu-item">
           <i>🚪</i>
@@ -673,6 +674,55 @@
               {% endfor %} {% else %}
               <tr>
                 <td colspan="7" class="text-center">No complaints found</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Add a Waste Collection table section to the dashboard -->
+        <div class="table-container">
+          <div class="table-header">
+            <div class="table-title">Recent Waste Collections</div>
+            <button class="action-btn" onclick="openModal('collectionsModal')">
+              View All
+            </button>
+          </div>
+
+          <table class="table">
+            <thead>
+              <tr>
+                <th>USER</th>
+                <th>DATE</th>
+                <th>WET WASTE (KG)</th>
+                <th>DRY WASTE (KG)</th>
+                <th>TOTAL WASTE</th>
+                <th>VEHICLE</th>
+                <th>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if recent_collections %} {% for collection in
+              recent_collections %}
+              <tr>
+                <td>{{ collection.user_name }}</td>
+                <td>{{ collection.collection_date }}</td>
+                <td>{{ collection.wet_waste_kg }}</td>
+                <td>{{ collection.dry_waste_kg }}</td>
+                <td>{{ collection.total_waste_kg }}</td>
+                <td>{{ collection.vehicle_id }}</td>
+                <td>
+                  <button
+                    class="action-btn"
+                    onclick="viewCollection({{ collection.collection_id }})"
+                  >
+                    View
+                  </button>
+                </td>
+              </tr>
+              {% endfor %} {% else %}
+              <tr>
+                <td colspan="7" class="text-center">No recent collections</td>
               </tr>
               {% endif %}
             </tbody>
@@ -1209,6 +1259,176 @@
             onclick="closeModal('assignVehicleUserModal')"
           >
             Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Collections Modal -->
+    <div id="collectionsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">All Waste Collections</div>
+          <span class="close-modal" onclick="closeModal('collectionsModal')"
+            >&times;</span
+          >
+        </div>
+
+        <div class="search-filter">
+          <input
+            type="text"
+            id="collectionSearch"
+            placeholder="Search collections..."
+            onkeyup="filterCollections()"
+          />
+          <input type="date" id="startDate" placeholder="Start Date" />
+          <input type="date" id="endDate" placeholder="End Date" />
+          <button class="filter-btn" onclick="filterCollections()">
+            Filter
+          </button>
+        </div>
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>USER</th>
+              <th>DATE</th>
+              <th>WET WASTE (KG)</th>
+              <th>DRY WASTE (KG)</th>
+              <th>TOTAL WASTE</th>
+              <th>VEHICLE</th>
+              <th>AREA</th>
+              <th>NOTES</th>
+              <th>ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="allCollectionsTable">
+            {% if collections %} {% for collection in collections %}
+            <tr>
+              <td>{{ collection.user_name }}</td>
+              <td>{{ collection.collection_date }}</td>
+              <td>{{ collection.wet_waste_kg }}</td>
+              <td>{{ collection.dry_waste_kg }}</td>
+              <td>{{ collection.total_waste_kg }}</td>
+              <td>{{ collection.vehicle_id }}</td>
+              <td>{{ collection.area_name }}</td>
+              <td>{{ collection.notes|default('N/A') }}</td>
+              <td>
+                <button
+                  class="action-btn"
+                  onclick="viewCollection({{ collection.collection_id }})"
+                >
+                  View
+                </button>
+              </td>
+            </tr>
+            {% endfor %} {% else %}
+            <tr>
+              <td colspan="9" class="text-center">No collections found</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+
+        <div class="pagination" id="collectionsPagination">
+          <button class="pagination-btn active">1</button>
+          <button class="pagination-btn">2</button>
+          <button class="pagination-btn">3</button>
+        </div>
+
+        <div class="modal-footer">
+          <button class="action-btn" onclick="closeModal('collectionsModal')">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Collection Detail Modal for rewards -->
+    <div id="collectionDetailModal" class="modal">
+      <div class="modal-content" style="max-width: 600px">
+        <div class="modal-header">
+          <div class="modal-title">Collection Details</div>
+          <span
+            class="close-modal"
+            onclick="closeModal('collectionDetailModal')"
+            >&times;</span
+          >
+        </div>
+
+        <div id="collectionDetail" style="padding: 16px 0">
+          <!-- Collection details will be loaded here -->
+          <div class="placeholder-text">Loading collection details...</div>
+        </div>
+
+        <div
+          class="reward-section"
+          style="padding: 16px 0; border-top: 1px solid #eee"
+        >
+          <h4>Reward Points</h4>
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              justify-content: center;
+              margin-top: 15px;
+            "
+          >
+            <button
+              class="action-btn"
+              style="background-color: #e74c3c"
+              onclick="awardPoints(-10)"
+            >
+              -10
+            </button>
+            <button
+              class="action-btn"
+              style="background-color: #e67e22"
+              onclick="awardPoints(-5)"
+            >
+              -5
+            </button>
+            <button
+              class="action-btn"
+              style="background-color: #27ae60"
+              onclick="awardPoints(5)"
+            >
+              +5
+            </button>
+            <button
+              class="action-btn"
+              style="background-color: #2ecc71"
+              onclick="awardPoints(10)"
+            >
+              +10
+            </button>
+          </div>
+          <div class="form-group" style="margin-top: 15px">
+            <label for="customPoints">Custom Points:</label>
+            <div style="display: flex; gap: 10px">
+              <input
+                type="number"
+                id="customPoints"
+                style="
+                  padding: 8px 12px;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  flex-grow: 1;
+                "
+              />
+              <button class="action-btn" onclick="awardCustomPoints()">
+                Award
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button
+            class="action-btn"
+            onclick="closeModal('collectionDetailModal')"
+          >
+            Close
           </button>
         </div>
       </div>
@@ -1890,6 +2110,219 @@
             console.error("Error:", error);
             alert("An error occurred while assigning vehicle");
           });
+      }
+
+      // Add this function to your existing JavaScript
+      function filterCollections() {
+        const input = document.getElementById("collectionSearch");
+        const filter = input.value.toUpperCase();
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+        const table = document.getElementById("allCollectionsTable");
+        const tr = table.getElementsByTagName("tr");
+
+        for (let i = 0; i < tr.length; i++) {
+          let textMatch = false;
+          let dateMatch = true;
+          const td = tr[i].getElementsByTagName("td");
+
+          // Check if text matches
+          for (let j = 0; j < td.length - 1; j++) {
+            // Skip the last column (actions)
+            if (td[j]) {
+              const txtValue = td[j].textContent || td[j].innerText;
+              if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                textMatch = true;
+                break;
+              }
+            }
+          }
+
+          // Check if date is in range
+          if (startDate || endDate) {
+            const dateCell = td[1]; // Date is in the second column
+            if (dateCell) {
+              const collectionDate = dateCell.textContent.trim();
+
+              if (startDate && new Date(collectionDate) < new Date(startDate)) {
+                dateMatch = false;
+              }
+
+              if (endDate && new Date(collectionDate) > new Date(endDate)) {
+                dateMatch = false;
+              }
+            }
+          }
+
+          if (textMatch && dateMatch) {
+            tr[i].style.display = "";
+          } else {
+            tr[i].style.display = "none";
+          }
+        }
+      }
+
+      function viewCollection(collectionId) {
+        // You can implement this to show a detailed view of the collection
+        alert("View collection details for ID: " + collectionId);
+      }
+
+      let currentCollectionId = null;
+
+      function viewCollection(collectionId) {
+        currentCollectionId = collectionId;
+        openModal("collectionDetailModal");
+
+        // Populate collection detail modal
+        const detailContainer = document.getElementById("collectionDetail");
+        detailContainer.innerHTML =
+          '<div class="placeholder-text">Loading collection details...</div>';
+
+        // Fetch collection details from backend
+        fetch("/admin/collection-details/" + collectionId)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              const collection = data.collection;
+
+              let rewardStatusClass =
+                collection.reward_status === "Given"
+                  ? "status-collected"
+                  : "status-pending";
+
+              detailContainer.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                  <p><strong>Collection ID:</strong> ${
+                    collection.collection_id
+                  }</p>
+                  <p><strong>Date:</strong> ${collection.collection_date}</p>
+                  <p><strong>User:</strong> ${collection.user_name}</p>
+                  <p><strong>Email:</strong> ${collection.user_email}</p>
+                  <p><strong>Phone:</strong> ${
+                    collection.user_phone || "N/A"
+                  }</p>
+                  <p><strong>Area:</strong> ${collection.area_name}</p>
+                  <p><strong>Wet Waste:</strong> ${
+                    collection.wet_waste_kg
+                  } kg</p>
+                  <p><strong>Dry Waste:</strong> ${
+                    collection.dry_waste_kg
+                  } kg</p>
+                  <p><strong>Total Waste:</strong> ${
+                    collection.total_waste_kg
+                  } kg</p>
+                  <p><strong>Vehicle:</strong> ${collection.vehicle_id}</p>
+                  <p><strong>Waste Tag:</strong> ${
+                    collection.waste_tag || "Not Tagged"
+                  }</p>
+                  <p><strong>Reward Status:</strong> <span class="status ${rewardStatusClass}">${
+                collection.reward_status
+              }</span></p>
+                  <p><strong>Current Points:</strong> ${
+                    collection.reward_points || "0"
+                  }</p>
+                </div>
+                <div>
+                  <p><strong>Notes:</strong></p>
+                  <p style="background-color: #f9f9f9; padding: 10px; border-radius: 4px;">${
+                    collection.notes || "No notes provided."
+                  }</p>
+                </div>
+              `;
+
+              // If reward already given, show message
+              if (collection.reward_status === "Given") {
+                document.querySelector(".reward-section").innerHTML += `
+                  <div style="margin-top: 15px; text-align: center;">
+                    <p style="color: #27ae60; font-weight: bold;">Reward of ${collection.reward_points} points already assigned.</p>
+                    <button class="action-btn" onclick="resetReward(${collection.collection_id})">Reset Reward</button>
+                  </div>
+                `;
+              }
+            } else {
+              detailContainer.innerHTML = `<p class="placeholder-text">Error: ${data.message}</p>`;
+            }
+          })
+          .catch((error) => {
+            console.error("Error loading collection details:", error);
+            detailContainer.innerHTML = `<p class="placeholder-text">Error loading collection details. Please try again.</p>`;
+          });
+      }
+
+      function awardPoints(points) {
+        if (currentCollectionId) {
+          updateReward(currentCollectionId, points);
+        }
+      }
+
+      function awardCustomPoints() {
+        if (currentCollectionId) {
+          const points = document.getElementById("customPoints").value;
+          if (points && !isNaN(points)) {
+            updateReward(currentCollectionId, parseInt(points));
+          } else {
+            alert("Please enter a valid number for custom points");
+          }
+        }
+      }
+
+      function updateReward(collectionId, points) {
+        fetch("/admin/update-reward", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          body: JSON.stringify({
+            collection_id: collectionId,
+            points: points,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              alert(
+                `Reward of ${points} points has been awarded successfully!`
+              );
+              // Refresh the collection details
+              viewCollection(collectionId);
+            } else {
+              alert(`Error: ${data.message}`);
+            }
+          })
+          .catch((error) => {
+            console.error("Error updating reward:", error);
+            alert("An error occurred while updating the reward");
+          });
+      }
+
+      function resetReward(collectionId) {
+        if (confirm("Are you sure you want to reset this reward?")) {
+          fetch("/admin/reset-reward", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Requested-With": "XMLHttpRequest",
+            },
+            body: JSON.stringify({
+              collection_id: collectionId,
+            }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.success) {
+                alert("Reward has been reset successfully!");
+                // Refresh the collection details
+                viewCollection(collectionId);
+              } else {
+                alert(`Error: ${data.message}`);
+              }
+            })
+            .catch((error) => {
+              console.error("Error resetting reward:", error);
+              alert("An error occurred while resetting the reward");
+            });
+        }
       }
     </script>
   </body>
