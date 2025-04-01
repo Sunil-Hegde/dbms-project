@@ -510,20 +510,26 @@ def admin_dashboard():
 @app.route('/admin/resolve-complaint/<int:complaint_id>', methods=['POST'])
 def resolve_complaint(complaint_id):
     if 'admin_id' not in session:
-        return {'success': False, 'message': 'Not authorized'}
+        return jsonify({'success': False, 'message': 'Not authorized'})
     
     try:
         conn = sqlite3.connect('WasteManagement.db')
         cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE complaint SET status = 'Resolved', resolved_date = CURRENT_TIMESTAMP WHERE complaint_id = ?",
-            (complaint_id,)
-        )
+        
+        # Update complaint status and set resolved date
+        cursor.execute("""
+            UPDATE complaint 
+            SET status = 'Resolved', resolved_date = CURRENT_TIMESTAMP 
+            WHERE complaint_id = ?
+        """, (complaint_id,))
+        
         conn.commit()
         conn.close()
-        return {'success': True}
+        
+        return jsonify({'success': True, 'message': 'Complaint resolved successfully'})
+    
     except Exception as e:
-        return {'success': False, 'message': str(e)}
+        return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/admin/delete-user/<int:user_id>', methods=['POST'])
 def delete_user(user_id):
@@ -622,54 +628,54 @@ def vehicle_dashboard():
         flash('Vehicle not found.', 'danger')
         return redirect(url_for('home'))
 
-# Add this route to handle complaint details
 
 @app.route('/admin/complaint-details/<int:complaint_id>')
-def complaint_details(complaint_id):
+def get_complaint_details(complaint_id):
     if 'admin_id' not in session:
-        return {'success': False, 'message': 'Not authorized'}
+        return jsonify({'success': False, 'message': 'Not authorized'})
     
     try:
         conn = sqlite3.connect('WasteManagement.db')
         cursor = conn.cursor()
         
-        # Fetch complaint with user details
+        # Fetch complaint details with user information
         cursor.execute("""
-            SELECT 
-                c.complaint_id, c.message, c.status, c.comp_date, c.resolved_date, c.image,
-                u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email, 
-                u.mobile AS user_phone,
-                a.name AS location, 'Waste Collection' AS type
+            SELECT c.complaint_id, c.message, c.status, c.comp_date, c.resolved_date, c.image,
+                   u.first_name || ' ' || u.last_name AS user_name,
+                   u.email AS user_email, u.mobile AS user_phone,
+                   a.name AS location,
+                   'Waste Collection' AS type
             FROM complaint c
             JOIN user u ON c.user_id = u.user_id
             JOIN area a ON c.area_id = a.area_id
             WHERE c.complaint_id = ?
         """, (complaint_id,))
         
-        result = cursor.fetchone()
+        complaint_data = cursor.fetchone()
         conn.close()
         
-        if not result:
-            return {'success': False, 'message': 'Complaint not found'}
+        if not complaint_data:
+            return jsonify({'success': False, 'message': 'Complaint not found'})
         
+        # Format the complaint data
         complaint = {
-            'complaint_id': result[0],
-            'message': result[1],
-            'status': result[2],
-            'date': result[3],
-            'resolved_date': result[4],
-            'image': result[5],
-            'user_name': result[6],
-            'user_email': result[7],
-            'user_phone': result[8],
-            'location': result[9],
-            'type': result[10]
+            'complaint_id': complaint_data[0],
+            'message': complaint_data[1],
+            'status': complaint_data[2],
+            'date': complaint_data[3],
+            'resolved_date': complaint_data[4],
+            'image': complaint_data[5],
+            'user_name': complaint_data[6],
+            'user_email': complaint_data[7],
+            'user_phone': complaint_data[8],
+            'location': complaint_data[9],
+            'type': complaint_data[10]
         }
         
-        return {'success': True, 'complaint': complaint}
+        return jsonify({'success': True, 'complaint': complaint})
+    
     except Exception as e:
-        return {'success': False, 'message': str(e)}
-
+        return jsonify({'success': False, 'message': str(e)})
 # Add this route to handle user area updates
 
 @app.route('/update-user-area', methods=['POST'])
