@@ -411,14 +411,33 @@
           </div>
         </div>
 
-        <!-- Add reward points display in user info section -->
+        <!-- Update the reward points display section to provide more detail -->
         <div class="info-section">
           <h5>Total Reward Points:</h5>
-          <p>
-            <span class="badge bg-success fs-5"
+          <div class="d-flex align-items-center">
+            <span class="badge bg-success fs-5 me-3"
               >{{ total_points|default('0') }} Points</span
             >
-          </p>
+            <div class="progress flex-grow-1" style="height: 10px">
+              <div
+                class="progress-bar bg-success"
+                role="progressbar"
+                style="width: {% if (total_points|int / 500 * 100) > 100 %}100{% else %}{{ (total_points|int / 500 * 100) }}{% endif %}%"
+                aria-valuenow="{{ total_points|default('0') }}"
+                aria-valuemin="0"
+                aria-valuemax="500"
+              ></div>
+            </div>
+          </div>
+          <small class="text-muted mt-2 d-block">
+            {% if total_points|int >= 0 %} {% if total_points|int < 100 %} Reach
+            100 points to unlock Bronze Rewards {% elif total_points|int < 250
+            %} Bronze Tier Achieved! Reach 250 points for Silver Tier {% elif
+            total_points|int < 500 %} Silver Tier Achieved! Reach 500 points for
+            Gold Tier {% else %} Gold Tier Achieved! Congratulations! {% endif
+            %} {% else %} Improve waste segregation to increase your points {%
+            endif %}
+          </small>
         </div>
 
         <!-- Complaint Form -->
@@ -658,18 +677,58 @@
           </div>
           <div class="modal-body">
             {% if waste_collections %}
+            <!-- Add this before the collection history table in the modal -->
+            <div class="card mb-4">
+              <div class="card-body">
+                <h6 class="card-title">Rewards Summary</h6>
+                <div class="row">
+                  <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                      <div class="h2 text-success">
+                        {{ total_points|default('0') }}
+                      </div>
+                      <div class="small text-muted">Total Points</div>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                      <div class="h2 text-info">
+                        {{ waste_collections|selectattr('reward_points', 'gt',
+                        0)|list|length }}
+                      </div>
+                      <div class="small text-muted">Positive Rewards</div>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                      <div class="h2 text-danger">
+                        {{ waste_collections|selectattr('reward_points', 'lt',
+                        0)|list|length }}
+                      </div>
+                      <div class="small text-muted">Negative Rewards</div>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                      <div class="h2 text-warning">
+                        {{ waste_collections|selectattr('reward_status', 'eq',
+                        'Pending')|list|length }}
+                      </div>
+                      <div class="small text-muted">Pending Rewards</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Update the waste collection history table to better display rewards -->
             <table class="table table-bordered">
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Date</th>
-                  <th>Wet Waste (kg)</th>
-                  <th>Dry Waste (kg)</th>
-                  <th>Total Waste</th>
-                  <th>Vehicle</th>
-                  <th>Waste Tag</th>
-                  <th>Reward Status</th>
-                  <th>Reward Points</th>
+                  <th>Waste (kg)</th>
+                  <th>Waste Quality</th>
+                  <th>Reward</th>
                   <th>Notes</th>
                 </tr>
               </thead>
@@ -678,34 +737,75 @@
                 <tr>
                   <td>{{ loop.index }}</td>
                   <td>{{ collection.collection_date }}</td>
-                  <td>{{ collection.wet_waste_kg }}</td>
-                  <td>{{ collection.dry_waste_kg }}</td>
-                  <td>{{ collection.total_waste_kg }}</td>
-                  <td>{{ collection.vehicle_id }}</td>
-                  <td>{{ collection.waste_tag|default('Not Tagged') }}</td>
                   <td>
-                    <span
-                      class="badge {{ 'bg-success' if collection.reward_status == 'Given' else 'bg-warning text-dark' }}"
-                    >
-                      {{ collection.reward_status }}
-                    </span>
+                    <div>
+                      <small class="text-primary">Wet:</small> {{
+                      collection.wet_waste_kg }} kg
+                    </div>
+                    <div>
+                      <small class="text-danger">Dry:</small> {{
+                      collection.dry_waste_kg }} kg
+                    </div>
+                    <div>
+                      <small class="text-success">Total:</small> {{
+                      collection.total_waste_kg }} kg
+                    </div>
                   </td>
                   <td>
-                    {% if collection.reward_points > 0 %}
-                    <span class="text-success"
-                      >+{{ collection.reward_points }}</span
+                    {% if collection.waste_tag %} {% if collection.waste_tag ==
+                    'Excellent' or collection.waste_tag == 'Segregated Properly'
+                    %}
+                    <span class="badge bg-success"
+                      >{{ collection.waste_tag }}</span
                     >
-                    {% elif collection.reward_points < 0 %}
-                    <span class="text-danger"
-                      >{{ collection.reward_points }}</span
+                    {% elif collection.waste_tag == 'Good' %}
+                    <span class="badge bg-info"
+                      >{{ collection.waste_tag }}</span
                     >
-                    {% elif collection.reward_status == 'Given' %}
-                    <span class="text-secondary">0</span>
+                    {% elif collection.waste_tag == 'Partially Segregated' %}
+                    <span class="badge bg-warning text-dark"
+                      >{{ collection.waste_tag }}</span
+                    >
+                    {% elif collection.waste_tag == 'Not Segregated' or
+                    collection.waste_tag == 'Contaminated' %}
+                    <span class="badge bg-danger"
+                      >{{ collection.waste_tag }}</span
+                    >
                     {% else %}
-                    <span class="text-secondary">Pending</span>
+                    <span class="badge bg-secondary"
+                      >{{ collection.waste_tag }}</span
+                    >
+                    {% endif %} {% else %}
+                    <span class="badge bg-secondary">Not Tagged</span>
                     {% endif %}
                   </td>
-                  <td>{{ collection.notes|default('N/A') }}</td>
+                  <td>
+                    <div class="d-flex flex-column">
+                      <div class="mb-1">
+                        <span
+                          class="badge {{ 'bg-success' if collection.reward_status == 'Given' else 'bg-warning text-dark' }}"
+                        >
+                          {{ collection.reward_status }}
+                        </span>
+                      </div>
+                      <div>
+                        {% if collection.reward_points > 0 %}
+                        <span class="text-success fw-bold"
+                          >+{{ collection.reward_points }} points</span
+                        >
+                        {% elif collection.reward_points < 0 %}
+                        <span class="text-danger fw-bold"
+                          >{{ collection.reward_points }} points</span
+                        >
+                        {% elif collection.reward_status == 'Given' %}
+                        <span class="text-secondary">0 points</span>
+                        {% else %}
+                        <span class="text-secondary">Pending</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </td>
+                  <td>{{ collection.notes|default('No additional notes') }}</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -846,6 +946,27 @@
             }
           }
         });
+
+      // Display reward details
+      function showRewardDetails(rewardPoints, wasteTag) {
+        let message = "";
+
+        if (wasteTag === "Excellent" || wasteTag === "Segregated Properly") {
+          message =
+            "Excellent waste segregation practices earn the highest rewards.";
+        } else if (wasteTag === "Good") {
+          message = "Good waste segregation practices earn moderate rewards.";
+        } else if (wasteTag === "Partially Segregated") {
+          message = "Partial segregation earns minimal or no rewards.";
+        } else if (
+          wasteTag === "Not Segregated" ||
+          wasteTag === "Contaminated"
+        ) {
+          message = "Poor waste segregation may result in penalty points.";
+        }
+
+        alert(`Reward Information:\n${rewardPoints} points\n\n${message}`);
+      }
     </script>
   </body>
 </html>

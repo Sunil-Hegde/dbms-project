@@ -212,7 +212,6 @@ def login_user():
 @app.route('/UserDashboard')
 def user_dashboard():
     if 'user_id' not in session:
-        flash('Please log in to access your dashboard.', 'danger')
         return redirect(url_for('login'))
     
     user_id = session['user_id']
@@ -329,54 +328,70 @@ def user_dashboard():
             })
     
     # Get total points
+    cursor.execute("SELECT u_points FROM user WHERE user_id = ?", (user_id,))
+    total_points_row = cursor.fetchone()
+    total_points = total_points_row[0] if total_points_row else 0
+
+    # Get waste collections with reward information
     cursor.execute("""
-        SELECT u_points FROM user WHERE user_id = ?
+        SELECT w.waste_id, w.c_date_time, w.bio_wt, w.non_bio_wt, 
+               v.type, v.license_plate, w.notes, w.waste_tag, 
+               w.reward_status, w.reward_points
+        FROM waste w
+        LEFT JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+        WHERE w.user_id = ?
+        ORDER BY w.c_date_time DESC
     """, (user_id,))
-    total_points = cursor.fetchone()[0] or 0
     
-    # Update waste_collections to include reward information
-    if all([cursor.execute("PRAGMA table_info(waste)").fetchall(), 
-           any(col[1] == 'waste_tag' for col in cursor.execute("PRAGMA table_info(waste)").fetchall()),
-           any(col[1] == 'reward_status' for col in cursor.execute("PRAGMA table_info(waste)").fetchall()),
-           any(col[1] == 'reward_points' for col in cursor.execute("PRAGMA table_info(waste)").fetchall())]):
-        cursor.execute("""
-            SELECT w.waste_id, w.c_date_time, w.bio_wt, w.non_bio_wt, v.type, v.license_plate, 
-                   w.notes, w.waste_tag, w.reward_status, w.reward_points
-            FROM waste w
-            LEFT JOIN vehicle v ON w.vehicle_id = v.vehicle_id
-            WHERE w.user_id = ?
-            ORDER BY w.c_date_time DESC
-        """, (user_id,))
+    waste_collections = []
+    for row in cursor.fetchall():
+        waste_collections.append({
+            'collection_id': row[0],
+            'collection_date': row[1],
+            'wet_waste_kg': row[2],
+            'dry_waste_kg': row[3],
+            'total_waste_kg': row[2] + row[3],
+            'vehicle_id': f"{row[4] or 'Unknown'} ({row[5] or 'N/A'})",
+            'notes': row[6],
+            'waste_tag': row[7],
+            'reward_status': row[8] or 'Pending',
+            'reward_points': row[9] or 0
+        })
+
+    # Improved rewards calculation
+    try:
+        # Fetch the user's current points from the user table
+        cursor.execute("SELECT u_points FROM user WHERE user_id = ?", (user_id,))
+        user_points_row = cursor.fetchone()
+        stored_user_points = user_points_row[0] if user_points_row and user_points_row[0] is not None else 0
         
-        waste_collections = []
-        for row in cursor.fetchall():
-            vehicle_info = f"{row[4] or 'Unknown'} ({row[5] or 'N/A'})"
-            waste_collections.append({
-                'collection_id': row[0],
-                'collection_date': row[1],
-                'wet_waste_kg': row[2],
-                'dry_waste_kg': row[3],
-                'total_waste_kg': row[2] + row[3],
-                'vehicle_id': vehicle_info,
-                'notes': row[6] or 'N/A',
-                'waste_tag': row[7] or 'Not Tagged',
-                'reward_status': row[8] or 'Pending',
-                'reward_points': row[9] or 0
-            })
-    else:
-        # Fallback logic: Use the existing waste collection data or initialize an empty list
-        waste_collections = waste_collections or [
-            {
-                'collection_id': None,
-                'collection_date': 'N/A',
-                'wet_waste_kg': 0,
-                'dry_waste_kg': 0,
-                'total_waste_kg': 0,
-                'vehicle_id': 'N/A',
-                'notes': 'N/A'
-            }
-        ]
-    
+        # Also calculate total points from waste table as a verification
+        cursor.execute("""
+            SELECT SUM(reward_points) 
+            FROM waste 
+            WHERE user_id = ? AND reward_status = 'Given'
+        """, (user_id,))
+        waste_total_points = cursor.fetchone()[0] or 0
+        
+        # For debugging purposes, print both values
+        print(f"User points from user table: {stored_user_points}")
+        print(f"Total points calculated from waste table: {waste_total_points}")
+        
+        # If there's a discrepancy, update the user table
+        if stored_user_points != waste_total_points:
+            print(f"Discrepancy found! Updating user points from {stored_user_points} to {waste_total_points}")
+            cursor.execute(
+                "UPDATE user SET u_points = ? WHERE user_id = ?",
+                (waste_total_points, user_id)
+            )
+            conn.commit()
+            total_points = waste_total_points
+        else:
+            total_points = stored_user_points
+    except Exception as e:
+        print(f"Error calculating rewards: {str(e)}")
+        total_points = 0
+
     conn.close()
     
     # Check if user has selected an area
@@ -1648,6 +1663,319 @@ def reset_reward():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+# Add these routes to your app.py file
+
+@app.route('/admin/users')
+def get_users():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        offset = (page - 1) * limit
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Get total count for pagination
+        cursor.execute("SELECT COUNT(*) FROM user")
+        total_count = cursor.fetchone()[0]
+        total_pages = (total_count + limit - 1) // limit  # ceiling division
+        
+        # Fetch users for current page
+        cursor.execute("""
+            SELECT u.user_id, u.first_name || ' ' || u.last_name AS name, u.email, u.mobile, 
+                   u.address, u.area_id, a.name as area_name, u.u_points, u.created_at
+            FROM user u
+            LEFT JOIN area a ON u.area_id = a.area_id
+            ORDER BY u.user_id
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        
+        users = []
+        for row in cursor.fetchall():
+            users.append({
+                'user_id': row[0],
+                'name': row[1],
+                'email': row[2],
+                'phone': row[3] or 'N/A',
+                'address': row[4] or 'N/A',
+                'area_id': row[5],
+                'area_name': row[6],
+                'points': row[7] or 0,
+                'created_at': row[8]
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'users': users, 
+            'total_count': total_count,
+            'total_pages': total_pages,
+            'current_page': page
+        })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/admin/vehicles')
+def get_vehicles():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        offset = (page - 1) * limit
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Get total count for pagination
+        cursor.execute("SELECT COUNT(*) FROM vehicle")
+        total_count = cursor.fetchone()[0]
+        total_pages = (total_count + limit - 1) // limit  # ceiling division
+        
+        # Fetch vehicles for current page
+        cursor.execute("""
+            SELECT v.vehicle_id, v.type, v.license_plate, v.driver_name, v.driver_phone,
+                   v.area_id, a.name as area_name, v.created_at, v.status
+            FROM vehicle v
+            LEFT JOIN area a ON v.area_id = a.area_id
+            ORDER BY v.vehicle_id
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        
+        vehicles = []
+        for row in cursor.fetchall():
+            status = row[8] or 'Active'
+            status_class = 'active'
+            if status.lower() == 'maintenance':
+                status_class = 'pending'
+            elif status.lower() == 'inactive':
+                status_class = 'resolved'
+                
+            vehicles.append({
+                'vehicle_id': row[0],
+                'type': row[1] or 'Standard',
+                'license_plate': row[2] or 'Not assigned',
+                'driver': row[3] or 'Unassigned',
+                'driver_phone': row[4],
+                'area_id': row[5],
+                'area_name': row[6],
+                'created_at': row[7],
+                'status': status,
+                'status_class': status_class
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'vehicles': vehicles, 
+            'total_count': total_count,
+            'total_pages': total_pages,
+            'current_page': page
+        })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/admin/complaints')
+def get_complaints():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        offset = (page - 1) * limit
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Get total count for pagination
+        cursor.execute("SELECT COUNT(*) FROM complaint")
+        total_count = cursor.fetchone()[0]
+        total_pages = (total_count + limit - 1) // limit  # ceiling division
+        
+        # Fetch complaints for current page
+        cursor.execute("""
+            SELECT c.complaint_id, u.first_name || ' ' || u.last_name AS user_name, 
+                   'Waste Collection' AS type, a.name AS location, c.comp_date, c.message,
+                   c.status, c.resolved_date
+            FROM complaint c
+            JOIN user u ON c.user_id = u.user_id
+            JOIN area a ON c.area_id = a.area_id
+            ORDER BY c.comp_date DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        
+        complaints = []
+        for row in cursor.fetchall():
+            status = row[6] or 'Pending'
+            status_class = 'pending'
+            if status.lower() == 'resolved':
+                status_class = 'resolved'
+            elif status.lower() == 'active':
+                status_class = 'active'
+                
+            complaints.append({
+                'complaint_id': row[0],
+                'user_name': row[1],
+                'type': row[2],
+                'location': row[3],
+                'date': row[4],
+                'message': row[5],
+                'status': status,
+                'status_class': status_class,
+                'resolved_date': row[7]
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'complaints': complaints,
+            'total_count': total_count,
+            'total_pages': total_pages,
+            'current_page': page
+        })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/admin/collections')
+def get_collections():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        offset = (page - 1) * limit
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        cursor = conn.cursor()
+        
+        # Get total count for pagination
+        cursor.execute("SELECT COUNT(*) FROM waste")
+        total_count = cursor.fetchone()[0]
+        total_pages = (total_count + limit - 1) // limit  # ceiling division
+        
+        # Check if notes column exists
+        cursor.execute("PRAGMA table_info(waste)")
+        columns = cursor.fetchall()
+        notes_column_exists = any(col[1] == 'notes' for col in columns)
+        
+        # Fetch collections for current page
+        if notes_column_exists:
+            cursor.execute("""
+                SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
+                    w.c_date_time, w.bio_wt, w.non_bio_wt, v.vehicle_id, 
+                    a.name as area_name, w.notes
+                FROM waste w
+                JOIN user u ON w.user_id = u.user_id
+                JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+                LEFT JOIN area a ON u.area_id = a.area_id
+                ORDER BY w.c_date_time DESC
+                LIMIT ? OFFSET ?
+            """, (limit, offset))
+        else:
+            cursor.execute("""
+                SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name, 
+                    w.c_date_time, w.bio_wt, w.non_bio_wt, v.vehicle_id, 
+                    a.name as area_name
+                FROM waste w
+                JOIN user u ON w.user_id = u.user_id
+                JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+                LEFT JOIN area a ON u.area_id = a.area_id
+                ORDER BY w.c_date_time DESC
+                LIMIT ? OFFSET ?
+            """, (limit, offset))
+        
+        collections = []
+        for row in cursor.fetchall():
+            if notes_column_exists:
+                collections.append({
+                    'collection_id': row[0],
+                    'user_name': row[1],
+                    'collection_date': row[2],
+                    'wet_waste_kg': row[3],
+                    'dry_waste_kg': row[4],
+                    'total_waste_kg': row[3] + row[4],
+                    'vehicle_id': row[5],
+                    'area_name': row[6],
+                    'notes': row[7]
+                })
+            else:
+                collections.append({
+                    'collection_id': row[0],
+                    'user_name': row[1],
+                    'collection_date': row[2],
+                    'wet_waste_kg': row[3],
+                    'dry_waste_kg': row[4],
+                    'total_waste_kg': row[3] + row[4],
+                    'vehicle_id': row[5],
+                    'area_name': row[6],
+                    'notes': 'N/A'
+                })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'collections': collections, 
+            'total_count': total_count,
+            'total_pages': total_pages,
+            'current_page': page
+        })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+    
+    # Add this route near the end of your file
+@app.route('/admin/execute-query', methods=['POST'])
+def execute_query():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'})
+    
+    try:
+        data = request.json
+        query = data.get('query', '').strip()
+        
+        if not query:
+            return jsonify({'success': False, 'message': 'No query provided'})
+        
+        # Check if this is a dangerous query
+        lower_query = query.lower()
+        if any(cmd in lower_query for cmd in ['insert ', 'update ', 'delete ', 'drop ', 'alter ']):
+            return jsonify({
+                'success': False, 
+                'message': 'For safety reasons, INSERT, UPDATE, DELETE, DROP, and ALTER operations are disabled in this interface.'
+            })
+        
+        conn = sqlite3.connect('WasteManagement.db')
+        # Set row_factory to get column names in results
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute(query)
+        
+        # Get all rows and convert them to dictionaries
+        rows = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'results': rows
+        })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 if __name__ == '__main__':
     init_db()  
     app.run(debug=True)

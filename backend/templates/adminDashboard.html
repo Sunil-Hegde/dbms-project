@@ -401,6 +401,95 @@
       .filter-btn:hover {
         background-color: var(--primary);
       }
+      <!-- Add this to your existing <style > section -- > .query-tabs {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      .tab-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 16px;
+      }
+
+      .tab-btn {
+        padding: 8px 16px;
+        background-color: #f5f5f5;
+        border: none;
+        cursor: pointer;
+        border-radius: 4px 4px 0 0;
+        margin-right: 4px;
+        font-size: 14px;
+      }
+
+      .tab-btn.active {
+        background-color: var(--secondary);
+        color: white;
+      }
+
+      .query-tab {
+        display: none;
+        margin-bottom: 20px;
+      }
+
+      .query-code {
+        display: block;
+        background-color: #f8f8f8;
+        padding: 16px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        font-family: monospace;
+        white-space: pre;
+        overflow-x: auto;
+        margin-bottom: 16px;
+      }
+
+      .query-results {
+        margin-top: 20px;
+        background-color: #fff;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        overflow-x: auto;
+        max-height: 400px;
+      }
+
+      .result-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .result-table th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .result-table td {
+        padding: 10px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .result-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+
+      .result-table tr:hover {
+        background-color: #f0f0f0;
+      }
+
+      .result-message {
+        padding: 16px;
+        color: #666;
+      }
+
+      .error-message {
+        padding: 16px;
+        color: var(--danger);
+      }
     </style>
   </head>
   <body>
@@ -431,6 +520,11 @@
         <div class="menu-item" onclick="openModal('collectionsModal')">
           <i>♻️</i>
           <span>Collections</span>
+        </div>
+        <!-- Add this to the menu div in the sidebar, right before the Logout item -->
+        <div class="menu-item" onclick="openModal('extraQueriesModal')">
+          <i>🔍</i>
+          <span>Extra Queries</span>
         </div>
         <div class="menu-item">
           <i>🚪</i>
@@ -489,7 +583,7 @@
             <div class="stat-icon collections-icon">♻️</div>
             <div class="stat-info">
               <h4>{{ waste_collected|default('0') }}</h4>
-              <p>Tons Collected</p>
+              <p>KGs Collected</p>
             </div>
           </div>
         </div>
@@ -1433,11 +1527,352 @@
         </div>
       </div>
     </div>
+    <!-- Add this modal at the end of your file, after all your existing modals -->
+    <div id="extraQueriesModal" class="modal">
+      <div class="modal-content" style="max-width: 1200px; height: 80vh">
+        <div class="modal-header">
+          <div class="modal-title">Extra SQL Queries</div>
+          <span class="close-modal" onclick="closeModal('extraQueriesModal')"
+            >&times;</span
+          >
+        </div>
+
+        <div
+          class="modal-body"
+          style="height: calc(100% - 140px); overflow: auto"
+        >
+          <div class="query-tabs">
+            <div
+              class="tab-buttons"
+              style="
+                display: flex;
+                overflow-x: auto;
+                margin-bottom: 20px;
+                border-bottom: 1px solid #ddd;
+              "
+            >
+              <button class="tab-btn active" onclick="showQueryTab(0)">
+                Users Without Complaints
+              </button>
+              <button class="tab-btn" onclick="showQueryTab(1)">
+                Waste By Area
+              </button>
+              <button class="tab-btn" onclick="showQueryTab(2)">
+                Top Waste Collectors
+              </button>
+              <button class="tab-btn" onclick="showQueryTab(3)">
+                Top Reward Earners
+              </button>
+              <button class="tab-btn" onclick="showQueryTab(4)">
+                Inactive Vehicles
+              </button>
+              <button class="tab-btn" onclick="showQueryTab(5)">
+                Pending Complaints
+              </button>
+              <button class="tab-btn" onclick="showQueryTab(6)">
+                Most Complained Drivers
+              </button>
+              <button class="tab-btn" onclick="showQueryTab(7)">
+                Unredeemed Rewards
+              </button>
+              <button class="tab-btn" onclick="showQueryTab(8)">
+                Avg Waste By Vehicle
+              </button>
+              <button class="tab-btn" onclick="showQueryTab(9)">
+                Efficient Areas
+              </button>
+              <button class="tab-btn" onclick="showQueryTab(10)">
+                Custom Query
+              </button>
+            </div>
+
+            <div class="tab-content">
+              <!-- Tab 1: Users Who Have Not Filed Any Complaints -->
+              <div class="query-tab" style="display: block">
+                <h3>Users Who Have Not Filed Any Complaints</h3>
+                <pre class="query-code">
+SELECT u.user_id, u.first_name, u.last_name, u.email 
+FROM user u
+LEFT JOIN complaint c ON u.user_id = c.user_id
+WHERE c.user_id IS NULL;
+            </pre
+                >
+                <button class="action-btn" onclick="executeQuery(0)">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResults0">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tab 2: List the Total Waste Collected Per Area -->
+              <div class="query-tab" style="display: none">
+                <h3>Total Waste Collected Per Area</h3>
+                <pre class="query-code">
+SELECT a.name AS area_name, 
+       SUM(w.bio_wt) AS total_bio_waste, 
+       SUM(w.non_bio_wt) AS total_non_bio_waste
+FROM waste w
+JOIN user u ON w.user_id = u.user_id
+JOIN area a ON u.area_id = a.area_id
+GROUP BY a.area_id
+ORDER BY (SUM(w.bio_wt) + SUM(w.non_bio_wt)) DESC;
+            </pre
+                >
+                <button class="action-btn" onclick="executeQuery(1)">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResults1">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tab 3: Find the Driver Who Has Collected the Most Waste -->
+              <div class="query-tab" style="display: none">
+                <h3>Drivers Who Have Collected the Most Waste</h3>
+                <pre class="query-code">
+SELECT v.driver_name, v.vehicle_id, 
+       SUM(w.bio_wt + w.non_bio_wt) AS total_waste_collected
+FROM waste w
+JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+WHERE v.driver_name IS NOT NULL
+GROUP BY v.vehicle_id, v.driver_name
+ORDER BY total_waste_collected DESC
+LIMIT 10;
+            </pre
+                >
+                <button class="action-btn" onclick="executeQuery(2)">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResults2">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tab 4: List the Users Who Have Earned the Most Reward Points -->
+              <div class="query-tab" style="display: none">
+                <h3>Users Who Have Earned the Most Reward Points</h3>
+                <pre class="query-code">
+SELECT u.first_name || ' ' || u.last_name AS user_name,
+       u.email,
+       u.u_points AS total_reward_points
+FROM user u
+WHERE u.u_points > 0
+ORDER BY u.u_points DESC
+LIMIT 10;
+            </pre
+                >
+                <button class="action-btn" onclick="executeQuery(3)">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResults3">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tab 5: Find Vehicles That Have Not Collected Waste in the Last 30 Days -->
+              <div class="query-tab" style="display: none">
+                <h3>Vehicles That Have Not Collected Waste Recently</h3>
+                <pre class="query-code">
+SELECT v.vehicle_id, v.driver_name, v.driver_phone, v.license_plate, v.type,
+       MAX(w.c_date_time) AS last_collection_date
+FROM vehicle v
+LEFT JOIN waste w ON v.vehicle_id = w.vehicle_id
+GROUP BY v.vehicle_id, v.driver_name, v.driver_phone, v.license_plate, v.type
+HAVING last_collection_date IS NULL OR last_collection_date < date('now', '-30 day')
+ORDER BY last_collection_date;
+            </pre
+                >
+                <button class="action-btn" onclick="executeQuery(4)">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResults4">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tab 6: List of Pending Complaints and the Users Who Filed Them -->
+              <div class="query-tab" style="display: none">
+                <h3>Pending Complaints and Their Users</h3>
+                <pre class="query-code">
+SELECT c.complaint_id, c.message, c.comp_date, 
+       u.first_name || ' ' || u.last_name AS user_name,
+       u.email, a.name AS area_name
+FROM complaint c
+JOIN user u ON c.user_id = u.user_id
+JOIN area a ON c.area_id = a.area_id
+WHERE c.status = 'Pending' OR c.status IS NULL
+ORDER BY c.comp_date ASC;
+            </pre
+                >
+                <button class="action-btn" onclick="executeQuery(5)">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResults5">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tab 7: Find the Vehicle That Has Received the Most Complaints -->
+              <div class="query-tab" style="display: none">
+                <h3>Areas with Most Complaints</h3>
+                <pre class="query-code">
+SELECT a.name AS area_name, COUNT(c.complaint_id) AS total_complaints,
+       MAX(c.comp_date) AS latest_complaint_date
+FROM complaint c
+JOIN area a ON c.area_id = a.area_id
+GROUP BY a.area_id, a.name
+ORDER BY total_complaints DESC;
+            </pre
+                >
+                <button class="action-btn" onclick="executeQuery(6)">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResults6">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tab 8: Show Users Who Have Earned Rewards but Haven't Redeemed -->
+              <div class="query-tab" style="display: none">
+                <h3>Waste Collections with Pending Rewards</h3>
+                <pre class="query-code">
+SELECT w.waste_id, u.first_name || ' ' || u.last_name AS user_name,
+       w.c_date_time, w.bio_wt, w.non_bio_wt, w.waste_tag,
+       w.reward_status
+FROM waste w
+JOIN user u ON w.user_id = u.user_id
+WHERE w.reward_status = 'Pending' OR w.reward_status IS NULL
+ORDER BY w.c_date_time DESC;
+            </pre
+                >
+                <button class="action-btn" onclick="executeQuery(7)">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResults7">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tab 9: Calculate the Average Waste Collection Per Vehicle -->
+              <div class="query-tab" style="display: none">
+                <h3>Average Waste Collection Per Vehicle</h3>
+                <pre class="query-code">
+SELECT v.vehicle_id, v.driver_name, v.type, v.license_plate,
+       COUNT(w.waste_id) AS collection_count,
+       AVG(w.bio_wt + w.non_bio_wt) AS avg_waste_per_collection,
+       SUM(w.bio_wt + w.non_bio_wt) AS total_waste_collected
+FROM waste w
+JOIN vehicle v ON w.vehicle_id = v.vehicle_id
+GROUP BY v.vehicle_id, v.driver_name, v.type, v.license_plate
+ORDER BY avg_waste_per_collection DESC;
+            </pre
+                >
+                <button class="action-btn" onclick="executeQuery(8)">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResults8">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tab 10: Find the Most Efficient Area in Terms of Waste Collection -->
+              <div class="query-tab" style="display: none">
+                <h3>Most Efficient Areas in Waste Collection</h3>
+                <pre class="query-code">
+SELECT a.name AS area_name, COUNT(w.waste_id) AS collections_count, 
+       SUM(w.bio_wt) AS total_bio_waste,
+       SUM(w.non_bio_wt) AS total_non_bio_waste,
+       SUM(w.bio_wt + w.non_bio_wt) AS total_waste_collected
+FROM waste w
+JOIN user u ON w.user_id = u.user_id
+JOIN area a ON u.area_id = a.area_id
+GROUP BY a.area_id, a.name
+ORDER BY collections_count DESC;
+            </pre
+                >
+                <button class="action-btn" onclick="executeQuery(9)">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResults9">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tab 11: Custom Query -->
+              <div class="query-tab" style="display: none">
+                <h3>Custom SQL Query</h3>
+                <p class="text-muted">
+                  Enter your own SQL query to execute. Be careful with UPDATE,
+                  DELETE, or INSERT statements.
+                </p>
+                <textarea
+                  id="customQuery"
+                  style="
+                    width: 100%;
+                    height: 150px;
+                    padding: 10px;
+                    font-family: monospace;
+                    margin-bottom: 10px;
+                  "
+                  placeholder="SELECT * FROM user LIMIT 10;"
+                ></textarea>
+                <button class="action-btn" onclick="executeCustomQuery()">
+                  Execute Query
+                </button>
+                <div class="query-results" id="queryResultsCustom">
+                  <p class="placeholder-text">
+                    Results will appear here after execution.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="action-btn" onclick="closeModal('extraQueriesModal')">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
 
     <script>
       // Modal handling functions
       function openModal(modalId) {
         document.getElementById(modalId).style.display = "block";
+
+        // Load appropriate data based on which modal is opened
+        if (modalId === "usersModal") {
+          loadUserPage(1);
+        } else if (modalId === "vehiclesModal") {
+          loadVehiclePage(1);
+        } else if (modalId === "complaintsModal") {
+          loadComplaintPage(1);
+        } else if (modalId === "collectionsModal") {
+          loadCollectionPage(1);
+        }
       }
 
       function closeModal(modalId) {
@@ -2323,6 +2758,521 @@
               alert("An error occurred while resetting the reward");
             });
         }
+      }
+
+      // Add these functions to your existing JavaScript in adminDashboard.html
+
+      // Variables to track current page for each modal
+      let userCurrentPage = 1;
+      let vehicleCurrentPage = 1;
+      let complaintCurrentPage = 1;
+      let collectionCurrentPage = 1;
+      const itemsPerPage = 10; // Number of items to show per page
+
+      // Function to load paginated data for users
+      function loadUserPage(page) {
+        userCurrentPage = page;
+
+        fetch(`/admin/users?page=${page}&limit=${itemsPerPage}`)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              // Update table content
+              const table = document.getElementById("allUsersTable");
+              table.innerHTML = "";
+
+              if (data.users && data.users.length > 0) {
+                data.users.forEach((user) => {
+                  table.innerHTML += `
+              <tr>
+                <td>${user.user_id}</td>
+                <td>${user.name}</td>
+                <td>${user.email}</td>
+                <td>${user.phone || "N/A"}</td>
+                <td>${user.address || "N/A"}</td>
+                <td>${user.points || "0"}</td>
+                <td>${user.created_at || "N/A"}</td>
+                <td><span class="status status-active">Active</span></td>
+                <td>
+                  <button class="action-btn" onclick="editUser(${
+                    user.user_id
+                  })">Edit</button>
+                  <button class="action-btn" onclick="assignVehicle(${
+                    user.user_id
+                  }, '${user.name}', '${
+                    user.area_name || "Not specified"
+                  }')">Assign Vehicle</button>
+                  <button class="action-btn" onclick="deleteUser(${
+                    user.user_id
+                  })">Delete</button>
+                </td>
+              </tr>
+            `;
+                });
+              } else {
+                table.innerHTML =
+                  '<tr><td colspan="9" class="text-center">No users found</td></tr>';
+              }
+
+              // Update pagination controls
+              updatePagination(
+                "usersPagination",
+                data.total_pages,
+                userCurrentPage,
+                loadUserPage
+              );
+            } else {
+              alert("Failed to load users: " + data.message);
+            }
+          })
+          .catch((error) => {
+            console.error("Error loading users:", error);
+            alert("An error occurred while loading users");
+          });
+      }
+
+      // Function to load paginated data for vehicles
+      function loadVehiclePage(page) {
+        vehicleCurrentPage = page;
+
+        fetch(`/admin/vehicles?page=${page}&limit=${itemsPerPage}`)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              // Update table content
+              const table = document.getElementById("allVehiclesTable");
+              table.innerHTML = "";
+
+              if (data.vehicles && data.vehicles.length > 0) {
+                data.vehicles.forEach((vehicle) => {
+                  let statusClass = "active";
+                  if (
+                    vehicle.status &&
+                    vehicle.status.toLowerCase() === "maintenance"
+                  ) {
+                    statusClass = "pending";
+                  } else if (
+                    vehicle.status &&
+                    vehicle.status.toLowerCase() === "inactive"
+                  ) {
+                    statusClass = "resolved";
+                  }
+
+                  table.innerHTML += `
+              <tr>
+                <td>${vehicle.vehicle_id}</td>
+                <td>${vehicle.type || "Standard"}</td>
+                <td>${vehicle.license_plate || "Not assigned"}</td>
+                <td>${vehicle.driver || "Unassigned"}</td>
+                <td>${vehicle.driver_phone || "N/A"}</td>
+                <td>${vehicle.area_name || "Yet to be assigned"}</td>
+                <td>${vehicle.created_at || "N/A"}</td>
+                <td><span class="status status-${statusClass}">${
+                    vehicle.status || "Active"
+                  }</span></td>
+                <td>
+                  <button class="action-btn" onclick="editVehicle(${
+                    vehicle.vehicle_id
+                  })">Edit</button>
+                  <button class="action-btn" onclick="showAssignAreaModal(${
+                    vehicle.vehicle_id
+                  }, '${vehicle.type || "Standard"} (${
+                    vehicle.license_plate || "N/A"
+                  }) - ${vehicle.driver || "Unassigned"}')">Assign Area</button>
+                  <button class="action-btn" onclick="trackVehicle(${
+                    vehicle.vehicle_id
+                  })">Track</button>
+                </td>
+              </tr>
+            `;
+                });
+              } else {
+                table.innerHTML =
+                  '<tr><td colspan="9" class="text-center">No vehicles found</td></tr>';
+              }
+
+              // Update pagination controls
+              updatePagination(
+                "vehiclesPagination",
+                data.total_pages,
+                vehicleCurrentPage,
+                loadVehiclePage
+              );
+            } else {
+              alert("Failed to load vehicles: " + data.message);
+            }
+          })
+          .catch((error) => {
+            console.error("Error loading vehicles:", error);
+            alert("An error occurred while loading vehicles");
+          });
+      }
+
+      // Function to load paginated data for complaints
+      function loadComplaintPage(page) {
+        complaintCurrentPage = page;
+
+        fetch(`/admin/complaints?page=${page}&limit=${itemsPerPage}`)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              // Update table content
+              const table = document.getElementById("allComplaintsTable");
+              table.innerHTML = "";
+
+              if (data.complaints && data.complaints.length > 0) {
+                data.complaints.forEach((complaint) => {
+                  let statusClass = "pending";
+                  if (
+                    complaint.status &&
+                    complaint.status.toLowerCase() === "resolved"
+                  ) {
+                    statusClass = "resolved";
+                  } else if (
+                    complaint.status &&
+                    complaint.status.toLowerCase() === "active"
+                  ) {
+                    statusClass = "active";
+                  }
+
+                  table.innerHTML += `
+              <tr>
+                <td>${complaint.complaint_id}</td>
+                <td>${complaint.user_name}</td>
+                <td>${complaint.type}</td>
+                <td>${complaint.location}</td>
+                <td>${complaint.date}</td>
+                <td>${
+                  complaint.message
+                    ? complaint.message.substring(0, 30) +
+                      (complaint.message.length > 30 ? "..." : "")
+                    : "No message"
+                }</td>
+                <td><span class="status status-${statusClass}">${
+                    complaint.status || "Pending"
+                  }</span></td>
+                <td>${complaint.resolved_date || "N/A"}</td>
+                <td>
+                  <button class="action-btn" onclick="viewComplaint(${
+                    complaint.complaint_id
+                  })">View</button>
+                  ${
+                    complaint.status !== "Resolved"
+                      ? `<button class="action-btn" onclick="resolveComplaint(${complaint.complaint_id})">Resolve</button>`
+                      : ""
+                  }
+                </td>
+              </tr>
+            `;
+                });
+              } else {
+                table.innerHTML =
+                  '<tr><td colspan="9" class="text-center">No complaints found</td></tr>';
+              }
+
+              // Update pagination controls
+              updatePagination(
+                "complaintsPagination",
+                data.total_pages,
+                complaintCurrentPage,
+                loadComplaintPage
+              );
+            } else {
+              alert("Failed to load complaints: " + data.message);
+            }
+          })
+          .catch((error) => {
+            console.error("Error loading complaints:", error);
+            alert("An error occurred while loading complaints");
+          });
+      }
+
+      // Function to load paginated data for collections
+      function loadCollectionPage(page) {
+        collectionCurrentPage = page;
+
+        fetch(`/admin/collections?page=${page}&limit=${itemsPerPage}`)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              // Update table content
+              const table = document.getElementById("allCollectionsTable");
+              table.innerHTML = "";
+
+              if (data.collections && data.collections.length > 0) {
+                data.collections.forEach((collection) => {
+                  table.innerHTML += `
+              <tr>
+                <td>${collection.user_name}</td>
+                <td>${collection.collection_date}</td>
+                <td>${collection.wet_waste_kg}</td>
+                <td>${collection.dry_waste_kg}</td>
+                <td>${collection.total_waste_kg}</td>
+                <td>${collection.vehicle_id}</td>
+                <td>${collection.area_name || "N/A"}</td>
+                <td>${collection.notes || "N/A"}</td>
+                <td>
+                  <button class="action-btn" onclick="viewCollection(${
+                    collection.collection_id
+                  })">View</button>
+                </td>
+              </tr>
+            `;
+                });
+              } else {
+                table.innerHTML =
+                  '<tr><td colspan="9" class="text-center">No collections found</td></tr>';
+              }
+
+              // Update pagination controls
+              updatePagination(
+                "collectionsPagination",
+                data.total_pages,
+                collectionCurrentPage,
+                loadCollectionPage
+              );
+            } else {
+              alert("Failed to load collections: " + data.message);
+            }
+          })
+          .catch((error) => {
+            console.error("Error loading collections:", error);
+            alert("An error occurred while loading collections");
+          });
+      }
+
+      // Helper function to update pagination controls
+      function updatePagination(
+        paginationId,
+        totalPages,
+        currentPage,
+        loadPageFunction
+      ) {
+        const paginationContainer = document.getElementById(paginationId);
+        if (!paginationContainer) return;
+
+        paginationContainer.innerHTML = "";
+
+        // Previous button
+        if (currentPage > 1) {
+          const prevButton = document.createElement("button");
+          prevButton.className = "pagination-btn";
+          prevButton.innerHTML = "&laquo;";
+          prevButton.onclick = () => loadPageFunction(currentPage - 1);
+          paginationContainer.appendChild(prevButton);
+        }
+
+        // Page buttons
+        const maxVisiblePages = 5;
+        let startPage = Math.max(
+          1,
+          currentPage - Math.floor(maxVisiblePages / 2)
+        );
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+        // Adjust start page if we're near the end
+        if (endPage - startPage + 1 < maxVisiblePages && startPage > 1) {
+          startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+
+        // First page button if we're not starting from page 1
+        if (startPage > 1) {
+          const firstButton = document.createElement("button");
+          firstButton.className = "pagination-btn";
+          firstButton.textContent = "1";
+          firstButton.onclick = () => loadPageFunction(1);
+          paginationContainer.appendChild(firstButton);
+
+          if (startPage > 2) {
+            const ellipsis = document.createElement("span");
+            ellipsis.className = "pagination-ellipsis";
+            ellipsis.textContent = "...";
+            paginationContainer.appendChild(ellipsis);
+          }
+        }
+
+        // Page buttons
+        for (let i = startPage; i <= endPage; i++) {
+          const pageButton = document.createElement("button");
+          pageButton.className =
+            "pagination-btn" + (i === currentPage ? " active" : "");
+          pageButton.textContent = i;
+          pageButton.onclick = () => loadPageFunction(i);
+          paginationContainer.appendChild(pageButton);
+        }
+
+        // Last page button if we're not ending at the last page
+        if (endPage < totalPages) {
+          if (endPage < totalPages - 1) {
+            const ellipsis = document.createElement("span");
+            ellipsis.className = "pagination-ellipsis";
+            ellipsis.textContent = "...";
+            paginationContainer.appendChild(ellipsis);
+          }
+
+          const lastButton = document.createElement("button");
+          lastButton.className = "pagination-btn";
+          lastButton.textContent = totalPages;
+          lastButton.onclick = () => loadPageFunction(totalPages);
+          paginationContainer.appendChild(lastButton);
+        }
+
+        // Next button
+        if (currentPage < totalPages) {
+          const nextButton = document.createElement("button");
+          nextButton.className = "pagination-btn";
+          nextButton.innerHTML = "&raquo;";
+          nextButton.onclick = () => loadPageFunction(currentPage + 1);
+          paginationContainer.appendChild(nextButton);
+        }
+      }
+
+      // Add CSS for pagination ellipsis
+      document.addEventListener("DOMContentLoaded", function () {
+        const style = document.createElement("style");
+        style.textContent = `
+    .pagination-ellipsis {
+      display: inline-block;
+      margin: 0 8px;
+      color: #666;
+    }
+  `;
+        document.head.appendChild(style);
+      });
+
+      <!-- Add these JavaScript functions at the end of your script section -->
+      function showQueryTab(tabIndex) {
+        // Hide all tabs
+        const tabs = document.querySelectorAll(".query-tab");
+        tabs.forEach((tab) => (tab.style.display = "none"));
+
+        // Deactivate all tab buttons
+        const buttons = document.querySelectorAll(".tab-btn");
+        buttons.forEach((btn) => btn.classList.remove("active"));
+
+        // Show selected tab and activate its button
+        tabs[tabIndex].style.display = "block";
+        buttons[tabIndex].classList.add("active");
+      }
+
+      function executeQuery(queryIndex) {
+        const queryElement =
+          document.querySelectorAll(".query-code")[queryIndex];
+        const resultElement = document.getElementById(
+          "queryResults" + queryIndex
+        );
+        const query = queryElement.textContent.trim();
+
+        resultElement.innerHTML =
+          '<p class="result-message">Executing query...</p>';
+
+        fetch("/admin/execute-query", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query: query }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              if (data.results.length === 0) {
+                resultElement.innerHTML =
+                  '<p class="result-message">Query executed successfully. No results returned.</p>';
+              } else {
+                // Create table with results
+                let tableHtml = '<table class="result-table"><thead><tr>';
+
+                // Add headers
+                const columns = Object.keys(data.results[0]);
+                columns.forEach((col) => {
+                  tableHtml += `<th>${col}</th>`;
+                });
+
+                tableHtml += "</tr></thead><tbody>";
+
+                // Add rows
+                data.results.forEach((row) => {
+                  tableHtml += "<tr>";
+                  columns.forEach((col) => {
+                    tableHtml += `<td>${
+                      row[col] !== null ? row[col] : "NULL"
+                    }</td>`;
+                  });
+                  tableHtml += "</tr>";
+                });
+
+                tableHtml += "</tbody></table>";
+                resultElement.innerHTML = tableHtml;
+              }
+            } else {
+              resultElement.innerHTML = `<p class="error-message">Error: ${data.message}</p>`;
+            }
+          })
+          .catch((error) => {
+            resultElement.innerHTML = `<p class="error-message">Error: ${error.message}</p>`;
+          });
+      }
+
+      function executeCustomQuery() {
+        const query = document.getElementById("customQuery").value.trim();
+        const resultElement = document.getElementById("queryResultsCustom");
+
+        if (!query) {
+          resultElement.innerHTML =
+            '<p class="error-message">Please enter a query to execute.</p>';
+          return;
+        }
+
+        resultElement.innerHTML =
+          '<p class="result-message">Executing query...</p>';
+
+        fetch("/admin/execute-query", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query: query }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              if (data.results.length === 0) {
+                resultElement.innerHTML =
+                  '<p class="result-message">Query executed successfully. No results returned.</p>';
+              } else {
+                // Create table with results
+                let tableHtml = '<table class="result-table"><thead><tr>';
+
+                // Add headers
+                const columns = Object.keys(data.results[0]);
+                columns.forEach((col) => {
+                  tableHtml += `<th>${col}</th>`;
+                });
+
+                tableHtml += "</tr></thead><tbody>";
+
+                // Add rows
+                data.results.forEach((row) => {
+                  tableHtml += "<tr>";
+                  columns.forEach((col) => {
+                    tableHtml += `<td>${
+                      row[col] !== null ? row[col] : "NULL"
+                    }</td>`;
+                  });
+                  tableHtml += "</tr>";
+                });
+
+                tableHtml += "</tbody></table>";
+                resultElement.innerHTML = tableHtml;
+              }
+            } else {
+              resultElement.innerHTML = `<p class="error-message">Error: ${data.message}</p>`;
+            }
+          })
+          .catch((error) => {
+            resultElement.innerHTML = `<p class="error-message">Error: ${error.message}</p>`;
+          });
       }
     </script>
   </body>
