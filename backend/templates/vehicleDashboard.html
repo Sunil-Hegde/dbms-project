@@ -541,7 +541,10 @@
                 <td>
                   <button
                     class="action-btn"
-                    onclick="openWasteCollectionModal({{ user.user_id }}, '{{ user.name }}', '{{ user.address }}')"
+                    data-user-id="{{ user.user_id }}"
+                    data-user-name="{{ user.name }}"
+                    data-user-address="{{ user.address }}"
+                    onclick="openWasteCollectionModalSafe(this)"
                   >
                     Record Collection
                   </button>
@@ -889,7 +892,11 @@
       };
 
       // Open waste collection modal with user data
-      function openWasteCollectionModal(userId, userName, userAddress) {
+      function openWasteCollectionModalSafe(button) {
+        const userId = button.getAttribute("data-user-id");
+        const userName = button.getAttribute("data-user-name");
+        const userAddress = button.getAttribute("data-user-address");
+
         document.getElementById("userId").value = userId;
         document.getElementById("userName").textContent = userName;
         document.getElementById("userAddress").textContent = userAddress;
@@ -899,6 +906,7 @@
         document.getElementById("dryWaste").value = "";
         document.getElementById("notes").value = "";
         document.getElementById("collectionDate").value = formattedDate;
+        document.getElementById("wasteTag").value = "";
 
         openModal("wasteCollectionModal");
       }
